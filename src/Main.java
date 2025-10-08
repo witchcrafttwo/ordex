@@ -1,9 +1,11 @@
-//TIP コードを<b>実行</b>するには、<shortcut actionId="Run"/> を押すか
-// ガターの <icon src="AllIcons.Actions.Execute"/> アイコンをクリックします。
+import java.io.File;
 public class Main {
-    public static void main(String[] args) {
-        SelectFile.Filechooser();
+    static SelectFile sf = new SelectFile();
+
+    public static void main(String[] args){
         GUI.frame();
+        File FilePath = sf.Filechooser(1);
+
 
 
     }
