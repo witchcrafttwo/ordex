@@ -19,7 +19,9 @@ public class SelectFile {
         if(selected == JFileChooser.APPROVE_OPTION){
             System.out.println("選択できました");
         }
-
+        if(selected == JFileChooser.CANCEL_OPTION){
+            System.out.println("選択がキャンセルされました");
+        }
         System.out.println(Filename);
         return Filename;
 
