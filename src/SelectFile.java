@@ -1,7 +1,7 @@
 import javax.swing.*;
 import java.io.File;
 public class SelectFile {
-    public static File Filechooser(int modeselect){
+    public  File Filechooser(int modeselect){
         String Title = null;
         JFileChooser chooser = new JFileChooser();
         File Filename = new File(System.getProperty("user.dir"));
@@ -14,8 +14,12 @@ public class SelectFile {
         }
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         chooser.setDialogTitle(Title);
-        int file = chooser.showOpenDialog(null);
-        Filename = chooser.getSelectedFile();
+        int selected = chooser.showOpenDialog(null);
+        Filename = chooser.getSelectedFile();//java.io.Fileオプションとして取得する
+        if(selected == JFileChooser.APPROVE_OPTION){
+            System.out.println("選択できました");
+        }
+
         System.out.println(Filename);
         return Filename;
 

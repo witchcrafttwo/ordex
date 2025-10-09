@@ -1,11 +1,25 @@
-import javax.swing.JFrame;
-public class GUI extends JFrame{
-    static void frame(){
-        new GUI();
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+public class GUI extends JFrame implements ActionListener {
+    JPanel main;
+    JTextField test1;
+    JLabel l1;
+    public GUI() {
+        super("ordex");
+        setSize(1920, 1080);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        main = new JPanel(new GridLayout(2, 2));
+        add(main);
+
     }
 
-public GUI(){
-    this.setVisible(true);
-}
 
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+
+    }
 }

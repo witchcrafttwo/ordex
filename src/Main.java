@@ -1,10 +1,11 @@
 import java.io.File;
 public class Main {
-    static SelectFile sf = new SelectFile();
-
     public static void main(String[] args){
-        GUI.frame();
+        GUI gui = new GUI();
+        new GUI();
+        SelectFile sf = new SelectFile();
         File FilePath = sf.Filechooser(1);
+        System.out.println("Selected file: " + FilePath);
 
 
 
