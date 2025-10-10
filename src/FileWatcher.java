@@ -14,18 +14,32 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class FileWatcher {
     public static void watchservice(File dir) throws IOException, InterruptedException {
+            String  keywords = "環境";
             WatchService watchservice = FileSystems.getDefault().newWatchService();
             Path dirPath = dir.toPath(); //File型をPath型へ変換
-            dirPath.register(watchservice, StandardWatchEventKinds.ENTRY_CREATE);
+            dirPath.register(watchservice, StandardWatchEventKinds.ENTRY_CREATE,StandardWatchEventKinds.ENTRY_MODIFY);
         new Thread(() -> {
             try {
                 while (true) {
                     WatchKey key = watchservice.take();
                     for (WatchEvent<?> event : key.pollEvents()) {
+                        WatchEvent.Kind<?> kind = event.kind();
+
+                        Path filename = (Path) event.context();
+                        Path fullPath = dirPath.resolve(filename);
+                        String name = filename.toString().toLowerCase();//Path型をString型に変換
+                        System.out.println(name);
+                        if(filename.toString().endsWith(".crdownload")||filename.endsWith(".tmp")||filename.endsWith(".part")){
+                            continue;
+                        }
+                        if(name.contains(keywords)){
+
+                        }
                         // イベント処理
                     }
                     key.reset();

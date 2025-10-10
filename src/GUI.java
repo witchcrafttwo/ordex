@@ -22,18 +22,29 @@ public class GUI extends JFrame implements ActionListener {
     JLabel l1;
     public GUI() {
         super("ordex");
-        setSize(1920, 1080);
+        setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        main = new JPanel(new GridLayout(2, 2));
+        main = new JPanel(new GridLayout(2, 1));
         add(main);
         Font font = new Font("Serif", Font.PLAIN, 30);
 
-        Panel1 = new JPanel(new GridLayout(2, 1));
+        Panel1 = new JPanel(new GridLayout(1, 2));
         Filepath1 = new JTextField();
-        Filepath2 = new JTextField();
         Filepath1.setEditable(false);//入力はブロックして表示は可能にする
-        Filepath2.setEditable(false);
         select1 = new JButton("Select File");
+        Panel1.add(select1);
+        Panel1.add(Filepath1);
+        main.add(Panel1);
+
+        Panel2 = new JPanel(new GridLayout(1, 2));
+        Filepath2 = new JTextField();
+        Filepath2.setEditable(false);
+        select2 = new JButton("Select File");
+        Panel2.add(select2);
+        Panel2.add(Filepath2);
+        main.add(Panel2);
+
+        setVisible(true);
 
 
     }
