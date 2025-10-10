@@ -3,7 +3,7 @@ import java.io.File;
 public class SelectFile {
     public  File Filechooser(int modeselect){
         String Title = null;
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = new JFileChooser("C:\\Users\\yunre\\Downloads");
         File Filename = new File(System.getProperty("user.dir"));
         //ディレクトリ選択のみ
         if(modeselect == 1){
@@ -15,14 +15,14 @@ public class SelectFile {
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         chooser.setDialogTitle(Title);
         int selected = chooser.showOpenDialog(null);
-        Filename = chooser.getSelectedFile();//java.io.Fileオプションとして取得する
+        Filename = chooser.getSelectedFile().getAbsoluteFile();//java.io.Fileオプションとして取得する
         if(selected == JFileChooser.APPROVE_OPTION){
             System.out.println("選択できました");
         }
         if(selected == JFileChooser.CANCEL_OPTION){
             System.out.println("選択がキャンセルされました");
         }
-        System.out.println(Filename);
+       // System.out.println(Filename);
         return Filename;
 
 

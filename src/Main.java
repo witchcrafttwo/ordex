@@ -6,8 +6,8 @@ public class Main {
         GUI gui = new GUI();
        SelectFile sf = new SelectFile();
        File FilePath = sf.Filechooser(1);
-       FileWatcher.watchservice(FilePath);
-        Thread.currentThread().join();
+       FileWatcher fw = new FileWatcher();
+       fw.watchservice(FilePath);
        System.out.println("Selected file: " + FilePath);
 
 

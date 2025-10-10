@@ -6,6 +6,7 @@ import static java.nio.file.StandardWatchEventKinds.*;
 import static java.nio.file.WatchEvent.*;
 public class FileWatcher {
     public static void watchservice(File dir) throws IOException {
+
         String keyword = "環境";
         if (!dir.exists() || !dir.isDirectory()) {
             throw new IllegalArgumentException("監視対象がディレクトリではない: " + dir);
@@ -13,7 +14,7 @@ public class FileWatcher {
         WatchService watcher;
         try{
             watcher = FileSystems.getDefault().newWatchService();
-            Watchable path = dir.toPath();
+            Watchable path = Paths.get(dir.toString());
             path.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
 
         } catch (IOException e){
