@@ -1,55 +1,75 @@
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
-import java.nio.file.FileVisitOption;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
+import java.nio.file.*;
 
+import static java.nio.file.StandardWatchEventKinds.*;
+import static java.nio.file.WatchEvent.*;
 public class FileWatcher {
-    public static void watchservice(File dir) throws IOException, InterruptedException {
-            String  keywords = "環境";
-            WatchService watchservice = FileSystems.getDefault().newWatchService();
-            Path dirPath = dir.toPath(); //File型をPath型へ変換
-            dirPath.register(watchservice, StandardWatchEventKinds.ENTRY_CREATE,StandardWatchEventKinds.ENTRY_MODIFY);
-        new Thread(() -> {
+    public static void watchservice(File dir) throws IOException {
+        String keyword = "環境";
+        if (!dir.exists() || !dir.isDirectory()) {
+            throw new IllegalArgumentException("監視対象がディレクトリではない: " + dir);
+        }
+        WatchService watcher;
+        try{
+            watcher = FileSystems.getDefault().newWatchService();
+            Watchable path = dir.toPath();
+            path.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+
+        } catch (IOException e){
+            e.printStackTrace();
+            return;
+        }
+
+
+        Thread t = new Thread(() -> {
             try {
                 while (true) {
-                    WatchKey key = watchservice.take();
-                    for (WatchEvent<?> event : key.pollEvents()) {
-                        WatchEvent.Kind<?> kind = event.kind();
+                    WatchKey watchkey;
+                    try{
+                        watchkey = watcher.take();
+                    } catch (InterruptedException e){
+                        System.err.println(e.getMessage());
+                        return;
+                    }
 
-                        Path filename = (Path) event.context();
-                        Path fullPath = dirPath.resolve(filename);
-                        String name = filename.toString().toLowerCase();//Path型をString型に変換
-                        System.out.println(name);
-                        if(filename.toString().endsWith(".crdownload")||filename.endsWith(".tmp")||filename.endsWith(".part")){
+                    for (WatchEvent<?> event : watchkey.pollEvents()) {
+                        Kind<?> kind = event.kind();
+                        if (kind == OVERFLOW) continue;
+
+                        Path rel = (Path)event.context();        // 相対名
+                        Path full = dir.toPath().resolve(rel);          // フルパス
+                        String name = rel.toString().toLowerCase();
+                        System.out.println("kind=" + kind + ", context=" + rel);
+
+                        // 一時拡張子は早めに弾く
+                        if (name.endsWith(".crdownload") || name.endsWith(".tmp") || name.endsWith(".part")) {
                             continue;
                         }
-                        if(name.contains(keywords)){
 
+                        System.out.println(kind.name() + " : " + full);
+
+                        // キーワード判定（例：一致したら印を出す）
+                        if (name.contains(keyword)) {
+                            System.out.println("★キーワード一致: " + full);
+                            // TODO: ここに実処理を書く（移動/通知 など）
                         }
-                        // イベント処理
                     }
-                    key.reset();
+
+                    if (!watchkey.reset()) {
+                        System.out.println("キー失効。監視終了。");
+                        break;
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
+            } finally {
+                try { watcher.close(); } catch (IOException ignored) {}
             }
-        }).start();
+        }, "WatchLoop");
 
-
-
+        t.setDaemon(true); // コンソールアプリならtrue推奨（main終了時に一緒に落ちる）
+        t.start();
     }
+
 }
