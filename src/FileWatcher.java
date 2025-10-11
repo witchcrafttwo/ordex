@@ -64,6 +64,11 @@ public class FileWatcher {
                 try { watcher.close(); } catch (IOException ignored) {}
             }
 
-    }
-
+    } public void FileMove(Path from, Path to) throws IOException {
+        try{
+            FileMove(from,to);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+}
 }
