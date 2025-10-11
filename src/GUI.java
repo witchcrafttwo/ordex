@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
 
 public class GUI extends JFrame implements ActionListener {
     JPanel main;
@@ -20,6 +21,8 @@ public class GUI extends JFrame implements ActionListener {
     JButton select2;
     JButton select3;
     JLabel l1;
+    SelectFile sf = new SelectFile();  //ディレクトリ選択のやつ
+    FileWatcher fw = new FileWatcher(); //ファイル監視のやつ
     public GUI() {
         super("ordex");
         setSize(800, 600);
@@ -32,6 +35,7 @@ public class GUI extends JFrame implements ActionListener {
         Filepath1 = new JTextField();
         Filepath1.setEditable(false);//入力はブロックして表示は可能にする
         select1 = new JButton("Select File");
+        select1.addActionListener(this);
         Panel1.add(select1);
         Panel1.add(Filepath1);
         main.add(Panel1);
@@ -52,7 +56,12 @@ public class GUI extends JFrame implements ActionListener {
 
 
     @Override
-    public void actionPerformed(ActionEvent e) {
+    public void actionPerformed(java.awt.event.ActionEvent e) {
+        if(e.getSource() == select1){
+            System.out.println("アクションリスナーテスト");
+         File file  = sf.Filechooser(1);
+
+        }
 
     }
 }

@@ -5,25 +5,21 @@ import java.nio.file.*;
 import static java.nio.file.StandardWatchEventKinds.*;
 import static java.nio.file.WatchEvent.*;
 public class FileWatcher {
-    public static void watchservice(File dir) throws IOException {
-
-        String keyword = "環境";
+    public static void watchservice(File dir,String keyword) throws IOException {
+        String wtpath = dir.toString();
         if (!dir.exists() || !dir.isDirectory()) {
             throw new IllegalArgumentException("監視対象がディレクトリではない: " + dir);
         }
         WatchService watcher;
         try{
             watcher = FileSystems.getDefault().newWatchService();
-            Watchable path = Paths.get(dir.toString());
+            Watchable path = Paths.get(wtpath);
             path.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
 
         } catch (IOException e){
             e.printStackTrace();
             return;
         }
-
-
-        Thread t = new Thread(() -> {
             try {
                 while (true) {
                     WatchKey watchkey;
@@ -67,10 +63,7 @@ public class FileWatcher {
             } finally {
                 try { watcher.close(); } catch (IOException ignored) {}
             }
-        }, "WatchLoop");
 
-        t.setDaemon(true); // コンソールアプリならtrue推奨（main終了時に一緒に落ちる）
-        t.start();
     }
 
 }
