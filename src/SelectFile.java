@@ -22,7 +22,7 @@ public class SelectFile {
         if(selected == JFileChooser.CANCEL_OPTION){
             System.out.println("選択がキャンセルされました");
         }
-       // System.out.println(Filename);
+        System.out.println(Filename + "を選択しました");
         return Filename;
 
 

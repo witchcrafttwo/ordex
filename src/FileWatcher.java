@@ -7,6 +7,8 @@ import static java.nio.file.WatchEvent.*;
 public class FileWatcher {
     public static void watchservice(File dir,String keyword) throws IOException {
         String wtpath = dir.toString();
+        String extension ;
+        Path test = Paths.get("C:\\Users\\yunre\\documents\\.information");
         if (!dir.exists() || !dir.isDirectory()) {
             throw new IllegalArgumentException("監視対象がディレクトリではない: " + dir);
         }
@@ -43,7 +45,10 @@ public class FileWatcher {
                         if (name.endsWith(".crdownload") || name.endsWith(".tmp") || name.endsWith(".part")) {
                             continue;
                         }
-
+                        if(name.endsWith(".txt") && kind == ENTRY_CREATE) {
+                            FileMove(full,test.resolve(rel),true);
+                            System.out.println("移動できましたよ");
+                        }
                         System.out.println(kind.name() + " : " + full);
 
                         // キーワード判定（例：一致したら印を出す）
@@ -64,11 +69,11 @@ public class FileWatcher {
                 try { watcher.close(); } catch (IOException ignored) {}
             }
 
-    } public void FileMove(Path from, Path to) throws IOException {
+    } public static void FileMove(Path from, Path to,boolean overwrite) throws IOException {
         try{
-            FileMove(from,to);
+            Files.move(from,to);
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println(e);
         }
 }
 }
