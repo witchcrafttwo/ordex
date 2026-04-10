@@ -1,6 +1,7 @@
 plugins {
     id("java")
     id("application")
+    id ("org.openjfx.javafxplugin") version ("0.0.8")
 }
 application{
     mainClass.set("org.Main")
@@ -22,4 +23,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+javafx {
+    version = "21,0,2"
+    modules = "javafx.controls"
 }
