@@ -1,21 +1,28 @@
 package org;
 
 import javafx.application.Application;
-import java.io.IOException;
-public class Main {
+import javafx.stage.Stage;
 
-    public static void main(String[] args) throws IOException {
-        Orchestrator.start();
+public class Main extends Application {
+
+    @Override
+    public void start(Stage stage) {
+        GUI2 gui = new GUI2();
+        gui.show(stage);
     }
 
-
-
-
-
-
-
-
-
-
-
+    public static void main(String[] args) {
+        launch(args);
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
