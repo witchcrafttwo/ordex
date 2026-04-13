@@ -42,13 +42,13 @@ jlink {
     imageName = "MyApp"
 
     launcher {
-        name = "MyApp"
+        name = "ordex"
     }
 
     jpackage {
         installerType = "exe"
         appVersion = "1.0.0"
-        vendor = "YourName"
-        installerName = "MyAppInstaller"
+        vendor = "Inoue"
+        installerName = "ordexInstaller"
     }
 }
