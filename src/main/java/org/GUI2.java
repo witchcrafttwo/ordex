@@ -441,6 +441,11 @@ public class GUI2 {
     }
 
     private void setupAutoStartButton(ToggleButton autoStartButton, TextArea logArea) {
+        if (startupManager.removeInvalidInstallerEntry()) {
+            settings.setAutoStartEnabled(false);
+            appendLog(logArea, "古いインストーラー向け自動起動設定を削除しました。");
+        }
+
         boolean enabled = settings.isAutoStartEnabled();
         autoStartButton.setSelected(enabled);
         updateAutoStartStyle(autoStartButton, enabled);

@@ -66,6 +66,27 @@ public class StartupManager {
         }
     }
 
+    public boolean removeInvalidInstallerEntry() {
+        if (!isSupportedPlatform()) {
+            return false;
+        }
+        try {
+            Process query = new ProcessBuilder(
+                    "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
+            String output = readProcessOutput(query.getInputStream()).toLowerCase(Locale.ROOT);
+            int exit = query.waitFor();
+            if (exit != 0 || !output.contains("installer")) {
+                return false;
+            }
+
+            Process delete = new ProcessBuilder(
+                    "reg", "delete", RUN_KEY, "/v", RUN_VALUE_NAME, "/f").start();
+            return delete.waitFor() == 0;
+        } catch (IOException | InterruptedException e) {
+            return false;
+        }
+    }
+
     private String resolveLaunchTarget() {
         Optional<String> processCommandOpt = ProcessHandle.current().info().command();
         String processCommand = processCommandOpt.orElse("");
