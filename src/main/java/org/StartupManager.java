@@ -66,27 +66,54 @@ public class StartupManager {
         }
     }
 
+    public boolean removeInvalidInstallerEntry() {
+        if (!isSupportedPlatform()) {
+            return false;
+        }
+        try {
+            Process query = new ProcessBuilder(
+                    "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
+            String output = readProcessOutput(query.getInputStream()).toLowerCase(Locale.ROOT);
+            int exit = query.waitFor();
+            if (exit != 0 || !output.contains("installer")) {
+                return false;
+            }
+
+            Process delete = new ProcessBuilder(
+                    "reg", "delete", RUN_KEY, "/v", RUN_VALUE_NAME, "/f").start();
+            return delete.waitFor() == 0;
+        } catch (IOException | InterruptedException e) {
+            return false;
+        }
+    }
+
     private String resolveLaunchTarget() {
         Optional<String> processCommandOpt = ProcessHandle.current().info().command();
         String processCommand = processCommandOpt.orElse("");
+        if (processCommand.isBlank()) {
+            return null;
+        }
         String lower = processCommand.toLowerCase(Locale.ROOT);
+        if (lower.contains("installer")) {
+            return null;
+        }
 
         // exe化されている場合はその実行ファイルを直接起動する
         if (lower.endsWith(".exe") && !lower.contains("java")) {
-            return "\"" + processCommand + "\" --hidden";
+            return quote(processCommand) + " --hidden";
         }
 
         String[] args = ProcessHandle.current().info().arguments().orElse(new String[0]);
         for (int i = 0; i < args.length - 1; i++) {
             if ("-jar".equals(args[i])) {
-                return "\"" + processCommand + "\" -jar \"" + args[i + 1] + "\" --hidden";
+                return quote(processCommand) + " -jar " + quote(args[i + 1]) + " --hidden";
             }
         }
 
         // フォールバック: これまで通りjavaw + classpath（開発起動向け）
         String javaw = System.getProperty("java.home") + "\\bin\\javaw.exe";
         String classPath = System.getProperty("java.class.path", "");
-        return "\"" + javaw + "\" -cp \"" + classPath + "\" org.Main --hidden";
+        return quote(javaw) + " -cp " + quote(classPath) + " org.Main --hidden";
     }
 
     private String readProcessOutput(InputStream inputStream) {
@@ -97,5 +124,15 @@ public class StartupManager {
             }
         }
         return output.toString();
+    }
+
+    private String quote(String value) {
+        if (value == null || value.isBlank()) {
+            return "\"\"";
+        }
+        if (value.startsWith("\"") && value.endsWith("\"")) {
+            return value;
+        }
+        return "\"" + value + "\"";
     }
 }

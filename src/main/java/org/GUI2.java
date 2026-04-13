@@ -236,7 +236,6 @@ public class GUI2 {
         } else {
             stage.show();
         }
-        stage.show();
     }
 
     private VBox createWatchPane(TextField watchFolderField, Button selectWatchButton) {
@@ -442,6 +441,11 @@ public class GUI2 {
     }
 
     private void setupAutoStartButton(ToggleButton autoStartButton, TextArea logArea) {
+        if (startupManager.removeInvalidInstallerEntry()) {
+            settings.setAutoStartEnabled(false);
+            appendLog(logArea, "古いインストーラー向け自動起動設定を削除しました。");
+        }
+
         boolean enabled = settings.isAutoStartEnabled();
         autoStartButton.setSelected(enabled);
         updateAutoStartStyle(autoStartButton, enabled);
@@ -455,10 +459,7 @@ public class GUI2 {
         if (enabled && !startupManager.isAutoStartRegistered()) {
             boolean registered = startupManager.setAutoStartEnabled(true);
             if (!registered) {
-                enabled = false;
-                autoStartButton.setSelected(false);
-                settings.setAutoStartEnabled(false);
-                appendLog(logArea, "自動起動の設定を復元できませんでした。");
+                appendLog(logArea, "自動起動の復元に失敗しました（設定は保持し、次回起動時に再試行します）。");
             }
             updateAutoStartStyle(autoStartButton, enabled);
         }
@@ -466,13 +467,12 @@ public class GUI2 {
         autoStartButton.setOnAction(e -> {
             boolean target = autoStartButton.isSelected();
             boolean changed = startupManager.setAutoStartEnabled(target);
-            if (!changed) {
-                autoStartButton.setSelected(!target);
-                appendLog(logArea, "自動起動設定の変更に失敗しました。");
-                return;
-            }
             settings.setAutoStartEnabled(target);
             updateAutoStartStyle(autoStartButton, target);
+            if (!changed) {
+                appendLog(logArea, "自動起動のOS反映に失敗しました（設定は保存済み）。");
+                return;
+            }
             appendLog(logArea, target ? "自動起動をONにしました。" : "自動起動をOFFにしました。");
         });
     }
