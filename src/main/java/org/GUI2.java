@@ -1,5 +1,6 @@
 package org;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -23,11 +24,14 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class GUI2 {
 
     private final ObservableList<String> rules = FXCollections.observableArrayList();
     private final ObservableList<String> rulePreview = FXCollections.observableArrayList();
+    private final PropertySettings settings = new PropertySettings();
 
     private File selectedWatchFolder;
     private File selectedDestinationFolder;
@@ -127,7 +131,9 @@ public class GUI2 {
 
             String summary = createRuleSummary(selectedWatchFolder.getAbsolutePath(), selectedDestinationFolder.getAbsolutePath());
             rules.add(summary);
+            saveCurrentRule();
             appendLog(logArea, "ルールを追加しました。");
+            startWatch(logArea);
         });
 
         Button clearPreviewButton = new Button("入力クリア");
@@ -141,12 +147,18 @@ public class GUI2 {
             appendLog(logArea, "入力中のルールをクリアしました。");
         });
 
+        Button deleteRuleButton = new Button("ルール削除");
+        deleteRuleButton.setMaxWidth(Double.MAX_VALUE);
+        deleteRuleButton.setOnAction(e -> deleteSelectedRule(ruleListView, watchFolderField, destinationField, keywordField, extensionField, logArea));
+
         ruleListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue == null) {
                 return;
             }
             appendLog(logArea, "ルールを選択しました: " + newValue);
         });
+
+        loadSavedRule(watchFolderField, destinationField, logArea);
 
         VBox watchPane = createWatchPane(watchFolderField, selectWatchButton);
         VBox ruleEditorPane = createRuleEditorPane(
@@ -157,7 +169,8 @@ public class GUI2 {
                 addExtensionButton,
                 selectDestinationButton,
                 addRuleButton,
-                clearPreviewButton);
+                clearPreviewButton,
+                deleteRuleButton);
 
         GridPane centerGrid = new GridPane();
         centerGrid.setHgap(12);
@@ -220,7 +233,8 @@ public class GUI2 {
             Button addExtensionButton,
             Button selectDestinationButton,
             Button addRuleButton,
-            Button clearPreviewButton) {
+            Button clearPreviewButton,
+            Button deleteRuleButton) {
         Label title = new Label("ルール");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
@@ -240,9 +254,10 @@ public class GUI2 {
         addFormRow(form, 1, "拡張子", extensionField, addExtensionButton);
         addFormRow(form, 2, "保存先", destinationField, selectDestinationButton);
 
-        HBox actionRow = new HBox(8, addRuleButton, clearPreviewButton);
+        HBox actionRow = new HBox(8, addRuleButton, clearPreviewButton, deleteRuleButton);
         HBox.setHgrow(addRuleButton, Priority.ALWAYS);
         HBox.setHgrow(clearPreviewButton, Priority.ALWAYS);
+        HBox.setHgrow(deleteRuleButton, Priority.ALWAYS);
 
         VBox pane = new VBox(12, title, form, actionRow);
         pane.setPadding(new Insets(14));
@@ -297,5 +312,103 @@ public class GUI2 {
             logArea.appendText(System.lineSeparator());
         }
         logArea.appendText(message);
+    }
+
+    /**
+     * GUIで入力した内容をバックエンド処理につなぐ起点。
+     * 実処理はこのメソッドから呼ぶと役割が分かれます。
+     */
+    private void startWatch(TextArea logArea) {
+        if (selectedWatchFolder == null || selectedDestinationFolder == null) {
+            appendLog(logArea, "監視フォルダと保存先フォルダを選択してください。");
+            return;
+        }
+
+        List<String> keywords = extractValues("キーワード: ");
+        List<String> extensions = extractValues("拡張子: ")
+                .stream()
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+
+        appendLog(logArea, "監視処理を開始します。");
+        Thread watcherThread = new Thread(() -> {
+            try {
+                FileWatcher.watchservice(
+                        selectedWatchFolder,
+                        selectedDestinationFolder,
+                        new java.util.ArrayList<>(keywords),
+                        new java.util.ArrayList<>(extensions));
+            } catch (Exception ex) {
+                Platform.runLater(() -> appendLog(logArea, "監視処理でエラー: " + ex.getMessage()));
+            }
+        }, "ordex-watcher");
+        watcherThread.setDaemon(true);
+        watcherThread.start();
+    }
+
+    private void saveCurrentRule() {
+        List<String> keywords = extractValues("キーワード: ");
+        List<String> extensions = extractValues("拡張子: ");
+        settings.writeConfig(selectedWatchFolder, selectedDestinationFolder, keywords, extensions);
+    }
+
+    private void loadSavedRule(TextField watchFolderField, TextField destinationField, TextArea logArea) {
+        PropertySettings.SavedConfig saved = settings.readConfig();
+        if (saved == null) {
+            appendLog(logArea, "保存済みルールはありません。");
+            return;
+        }
+
+        if (saved.getWatchPath() != null && !saved.getWatchPath().isBlank()) {
+            selectedWatchFolder = new File(saved.getWatchPath());
+            watchFolderField.setText(selectedWatchFolder.getAbsolutePath());
+        }
+        if (saved.getDestinationPath() != null && !saved.getDestinationPath().isBlank()) {
+            selectedDestinationFolder = new File(saved.getDestinationPath());
+            destinationField.setText(selectedDestinationFolder.getAbsolutePath());
+            syncDestinationPreview(selectedDestinationFolder.getAbsolutePath());
+        }
+
+        saved.getKeywords().forEach(keyword -> rulePreview.add("キーワード: " + keyword));
+        saved.getExtensions().forEach(extension -> rulePreview.add("拡張子: " + extension));
+
+        if (selectedWatchFolder != null && selectedDestinationFolder != null) {
+            rules.add(createRuleSummary(selectedWatchFolder.getAbsolutePath(), selectedDestinationFolder.getAbsolutePath()));
+            appendLog(logArea, "保存済みルールを自動読み込みしました。");
+        } else {
+            appendLog(logArea, "保存済みデータを読み込みました（フォルダ設定は未完了）。");
+        }
+    }
+
+    private void deleteSelectedRule(
+            ListView<String> ruleListView,
+            TextField watchFolderField,
+            TextField destinationField,
+            TextField keywordField,
+            TextField extensionField,
+            TextArea logArea) {
+        String selected = ruleListView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            appendLog(logArea, "削除するルールを選択してください。");
+            return;
+        }
+
+        rules.remove(selected);
+        rulePreview.clear();
+        selectedWatchFolder = null;
+        selectedDestinationFolder = null;
+        watchFolderField.clear();
+        destinationField.clear();
+        keywordField.clear();
+        extensionField.clear();
+        settings.writeConfig(null, null, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        appendLog(logArea, "選択したルールを削除しました。");
+    }
+
+    private List<String> extractValues(String prefix) {
+        return rulePreview.stream()
+                .filter(item -> item.startsWith(prefix))
+                .map(item -> item.substring(prefix.length()).trim())
+                .collect(Collectors.toList());
     }
 }
