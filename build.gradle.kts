@@ -2,22 +2,29 @@ plugins {
     id("java")
     id("application")
     id("org.openjfx.javafxplugin") version "0.1.0"
+    id("org.beryx.jlink") version "3.1.5"
 }
-application{
-    mainClass.set("org.Main")
-}
-
 
 group = "org"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+application {
+    mainModule.set("ordex.gradle.main")
+    mainClass.set("org.Main")
+}
+
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
-
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -25,7 +32,23 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
 javafx {
     version = "21"
-    modules = listOf("javafx.controls","javafx.fxml")
+    modules = listOf("javafx.controls", "javafx.fxml")
+}
+
+jlink {
+    imageName = "MyApp"
+
+    launcher {
+        name = "ordex"
+    }
+
+    jpackage {
+        installerType = "exe"
+        appVersion = "1.0.0"
+        vendor = "Inoue"
+        installerName = "ordexInstaller"
+    }
 }
