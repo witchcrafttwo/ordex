@@ -150,9 +150,6 @@ public class GUI2 {
         Button deleteRuleButton = new Button("ルール削除");
         deleteRuleButton.setMaxWidth(Double.MAX_VALUE);
         deleteRuleButton.setOnAction(e -> deleteSelectedRule(ruleListView, watchFolderField, destinationField, keywordField, extensionField, logArea));
-        Button startWatchButton = new Button("監視開始");
-        startWatchButton.setMaxWidth(Double.MAX_VALUE);
-        startWatchButton.setOnAction(e -> startWatch(logArea));
 
         ruleListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue == null) {
@@ -174,7 +171,6 @@ public class GUI2 {
                 addRuleButton,
                 clearPreviewButton,
                 deleteRuleButton);
-                startWatchButton);
 
         GridPane centerGrid = new GridPane();
         centerGrid.setHgap(12);
@@ -239,7 +235,6 @@ public class GUI2 {
             Button addRuleButton,
             Button clearPreviewButton,
             Button deleteRuleButton) {
-            Button startWatchButton) {
         Label title = new Label("ルール");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
@@ -263,11 +258,6 @@ public class GUI2 {
         HBox.setHgrow(addRuleButton, Priority.ALWAYS);
         HBox.setHgrow(clearPreviewButton, Priority.ALWAYS);
         HBox.setHgrow(deleteRuleButton, Priority.ALWAYS);
-        HBox actionRow = new HBox(8, addRuleButton, clearPreviewButton, startWatchButton);
-        HBox.setHgrow(addRuleButton, Priority.ALWAYS);
-        HBox.setHgrow(clearPreviewButton, Priority.ALWAYS);
-        HBox.setHgrow(startWatchButton, Priority.ALWAYS);
-
 
         VBox pane = new VBox(12, title, form, actionRow);
         pane.setPadding(new Insets(14));
@@ -414,7 +404,6 @@ public class GUI2 {
         settings.writeConfig(null, null, java.util.Collections.emptyList(), java.util.Collections.emptyList());
         appendLog(logArea, "選択したルールを削除しました。");
     }
-
 
     private List<String> extractValues(String prefix) {
         return rulePreview.stream()
