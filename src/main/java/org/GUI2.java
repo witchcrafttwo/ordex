@@ -1,5 +1,6 @@
 package org;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -11,6 +12,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -23,11 +25,15 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class GUI2 {
 
     private final ObservableList<String> rules = FXCollections.observableArrayList();
     private final ObservableList<String> rulePreview = FXCollections.observableArrayList();
+    private final PropertySettings settings = new PropertySettings();
+    private final StartupManager startupManager = new StartupManager();
 
     private File selectedWatchFolder;
     private File selectedDestinationFolder;
@@ -51,6 +57,10 @@ public class GUI2 {
         logArea.setEditable(false);
         logArea.setWrapText(true);
         logArea.setPrefRowCount(5);
+
+        ToggleButton autoStartButton = new ToggleButton();
+        autoStartButton.setMinWidth(140);
+        setupAutoStartButton(autoStartButton, logArea);
 
         Button selectWatchButton = new Button("選択");
         selectWatchButton.setOnAction(e -> {
@@ -127,7 +137,9 @@ public class GUI2 {
 
             String summary = createRuleSummary(selectedWatchFolder.getAbsolutePath(), selectedDestinationFolder.getAbsolutePath());
             rules.add(summary);
+            saveCurrentRule();
             appendLog(logArea, "ルールを追加しました。");
+            startWatch(logArea);
         });
 
         Button clearPreviewButton = new Button("入力クリア");
@@ -141,12 +153,18 @@ public class GUI2 {
             appendLog(logArea, "入力中のルールをクリアしました。");
         });
 
+        Button deleteRuleButton = new Button("ルール削除");
+        deleteRuleButton.setMaxWidth(Double.MAX_VALUE);
+        deleteRuleButton.setOnAction(e -> deleteSelectedRule(ruleListView, watchFolderField, destinationField, keywordField, extensionField, logArea));
+
         ruleListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue == null) {
                 return;
             }
             appendLog(logArea, "ルールを選択しました: " + newValue);
         });
+
+        loadSavedRule(watchFolderField, destinationField, logArea);
 
         VBox watchPane = createWatchPane(watchFolderField, selectWatchButton);
         VBox ruleEditorPane = createRuleEditorPane(
@@ -157,7 +175,8 @@ public class GUI2 {
                 addExtensionButton,
                 selectDestinationButton,
                 addRuleButton,
-                clearPreviewButton);
+                clearPreviewButton,
+                deleteRuleButton);
 
         GridPane centerGrid = new GridPane();
         centerGrid.setHgap(12);
@@ -177,13 +196,21 @@ public class GUI2 {
         VBox logPane = createTitledPane("Log", logArea);
         VBox.setVgrow(logPane, Priority.ALWAYS);
 
+        Label autoStartLabel = new Label("起動オプション");
+        autoStartLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #475569;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox autoStartHeader = new HBox(8, autoStartLabel, spacer, autoStartButton);
+        autoStartHeader.setAlignment(Pos.CENTER_LEFT);
+
         HBox topRow = new HBox(12, watchPane, ruleEditorPane);
         HBox.setHgrow(watchPane, Priority.ALWAYS);
         HBox.setHgrow(ruleEditorPane, Priority.ALWAYS);
+        VBox topContainer = new VBox(8, autoStartHeader, topRow);
 
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(16));
-        root.setTop(topRow);
+        root.setTop(topContainer);
         root.setCenter(centerGrid);
         root.setBottom(logPane);
         BorderPane.setMargin(topRow, new Insets(0, 0, 12, 0));
@@ -220,7 +247,8 @@ public class GUI2 {
             Button addExtensionButton,
             Button selectDestinationButton,
             Button addRuleButton,
-            Button clearPreviewButton) {
+            Button clearPreviewButton,
+            Button deleteRuleButton) {
         Label title = new Label("ルール");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
@@ -240,9 +268,10 @@ public class GUI2 {
         addFormRow(form, 1, "拡張子", extensionField, addExtensionButton);
         addFormRow(form, 2, "保存先", destinationField, selectDestinationButton);
 
-        HBox actionRow = new HBox(8, addRuleButton, clearPreviewButton);
+        HBox actionRow = new HBox(8, addRuleButton, clearPreviewButton, deleteRuleButton);
         HBox.setHgrow(addRuleButton, Priority.ALWAYS);
         HBox.setHgrow(clearPreviewButton, Priority.ALWAYS);
+        HBox.setHgrow(deleteRuleButton, Priority.ALWAYS);
 
         VBox pane = new VBox(12, title, form, actionRow);
         pane.setPadding(new Insets(14));
@@ -297,5 +326,149 @@ public class GUI2 {
             logArea.appendText(System.lineSeparator());
         }
         logArea.appendText(message);
+    }
+
+    /**
+     * GUIで入力した内容をバックエンド処理につなぐ起点。
+     * 実処理はこのメソッドから呼ぶと役割が分かれます。
+     */
+    private void startWatch(TextArea logArea) {
+        if (selectedWatchFolder == null || selectedDestinationFolder == null) {
+            appendLog(logArea, "監視フォルダと保存先フォルダを選択してください。");
+            return;
+        }
+
+        List<String> keywords = extractValues("キーワード: ");
+        List<String> extensions = extractValues("拡張子: ")
+                .stream()
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+
+        appendLog(logArea, "監視処理を開始します。");
+        Thread watcherThread = new Thread(() -> {
+            try {
+                FileWatcher.watchservice(
+                        selectedWatchFolder,
+                        selectedDestinationFolder,
+                        new java.util.ArrayList<>(keywords),
+                        new java.util.ArrayList<>(extensions));
+            } catch (Exception ex) {
+                Platform.runLater(() -> appendLog(logArea, "監視処理でエラー: " + ex.getMessage()));
+            }
+        }, "ordex-watcher");
+        watcherThread.setDaemon(true);
+        watcherThread.start();
+    }
+
+    private void saveCurrentRule() {
+        List<String> keywords = extractValues("キーワード: ");
+        List<String> extensions = extractValues("拡張子: ");
+        settings.writeConfig(selectedWatchFolder, selectedDestinationFolder, keywords, extensions);
+    }
+
+    private void loadSavedRule(TextField watchFolderField, TextField destinationField, TextArea logArea) {
+        PropertySettings.SavedConfig saved = settings.readConfig();
+        if (saved == null) {
+            appendLog(logArea, "保存済みルールはありません。");
+            return;
+        }
+
+        if (saved.getWatchPath() != null && !saved.getWatchPath().isBlank()) {
+            selectedWatchFolder = new File(saved.getWatchPath());
+            watchFolderField.setText(selectedWatchFolder.getAbsolutePath());
+        }
+        if (saved.getDestinationPath() != null && !saved.getDestinationPath().isBlank()) {
+            selectedDestinationFolder = new File(saved.getDestinationPath());
+            destinationField.setText(selectedDestinationFolder.getAbsolutePath());
+            syncDestinationPreview(selectedDestinationFolder.getAbsolutePath());
+        }
+
+        saved.getKeywords().forEach(keyword -> rulePreview.add("キーワード: " + keyword));
+        saved.getExtensions().forEach(extension -> rulePreview.add("拡張子: " + extension));
+
+        if (selectedWatchFolder != null && selectedDestinationFolder != null) {
+            rules.add(createRuleSummary(selectedWatchFolder.getAbsolutePath(), selectedDestinationFolder.getAbsolutePath()));
+            appendLog(logArea, "保存済みルールを自動読み込みしました。");
+        } else {
+            appendLog(logArea, "保存済みデータを読み込みました（フォルダ設定は未完了）。");
+        }
+    }
+
+    private void deleteSelectedRule(
+            ListView<String> ruleListView,
+            TextField watchFolderField,
+            TextField destinationField,
+            TextField keywordField,
+            TextField extensionField,
+            TextArea logArea) {
+        String selected = ruleListView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            appendLog(logArea, "削除するルールを選択してください。");
+            return;
+        }
+
+        rules.remove(selected);
+        rulePreview.clear();
+        selectedWatchFolder = null;
+        selectedDestinationFolder = null;
+        watchFolderField.clear();
+        destinationField.clear();
+        keywordField.clear();
+        extensionField.clear();
+        settings.writeConfig(null, null, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        appendLog(logArea, "選択したルールを削除しました。");
+    }
+
+    private List<String> extractValues(String prefix) {
+        return rulePreview.stream()
+                .filter(item -> item.startsWith(prefix))
+                .map(item -> item.substring(prefix.length()).trim())
+                .collect(Collectors.toList());
+    }
+
+    private void setupAutoStartButton(ToggleButton autoStartButton, TextArea logArea) {
+        boolean enabled = settings.isAutoStartEnabled();
+        autoStartButton.setSelected(enabled);
+        updateAutoStartStyle(autoStartButton, enabled);
+
+        if (!startupManager.isSupportedPlatform()) {
+            autoStartButton.setDisable(true);
+            appendLog(logArea, "自動起動はWindowsでのみ有効です。");
+            return;
+        }
+
+        if (enabled && !startupManager.isAutoStartRegistered()) {
+            boolean registered = startupManager.setAutoStartEnabled(true);
+            if (!registered) {
+                enabled = false;
+                autoStartButton.setSelected(false);
+                settings.setAutoStartEnabled(false);
+                appendLog(logArea, "自動起動の設定を復元できませんでした。");
+            }
+            updateAutoStartStyle(autoStartButton, enabled);
+        }
+
+        autoStartButton.setOnAction(e -> {
+            boolean target = autoStartButton.isSelected();
+            boolean changed = startupManager.setAutoStartEnabled(target);
+            if (!changed) {
+                autoStartButton.setSelected(!target);
+                appendLog(logArea, "自動起動設定の変更に失敗しました。");
+                return;
+            }
+            settings.setAutoStartEnabled(target);
+            updateAutoStartStyle(autoStartButton, target);
+            appendLog(logArea, target ? "自動起動をONにしました。" : "自動起動をOFFにしました。");
+        });
+    }
+
+    private void updateAutoStartStyle(ToggleButton autoStartButton, boolean enabled) {
+        if (enabled) {
+            autoStartButton.setText("⊞ 自動起動 ON");
+            autoStartButton.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold;");
+        } else {
+            autoStartButton.setText("⊞ 自動起動 OFF");
+            autoStartButton.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #0f172a; -fx-font-weight: bold;");
+        }
     }
 }
