@@ -31,6 +31,7 @@ public class GUI2 {
 
     private final ObservableList<String> rules = FXCollections.observableArrayList();
     private final ObservableList<String> rulePreview = FXCollections.observableArrayList();
+    private final PropertySettings settings = new PropertySettings();
 
     private File selectedWatchFolder;
     private File selectedDestinationFolder;
@@ -130,6 +131,7 @@ public class GUI2 {
 
             String summary = createRuleSummary(selectedWatchFolder.getAbsolutePath(), selectedDestinationFolder.getAbsolutePath());
             rules.add(summary);
+            saveCurrentRule();
             appendLog(logArea, "ルールを追加しました。");
         });
 
@@ -154,6 +156,8 @@ public class GUI2 {
             }
             appendLog(logArea, "ルールを選択しました: " + newValue);
         });
+
+        loadSavedRule(watchFolderField, destinationField, logArea);
 
         VBox watchPane = createWatchPane(watchFolderField, selectWatchButton);
         VBox ruleEditorPane = createRuleEditorPane(
@@ -341,6 +345,43 @@ public class GUI2 {
         watcherThread.start();
     }
 
+<<<<<<< codex/find-where-to-add-processing-in-gui-code-fkahmc
+    private void saveCurrentRule() {
+        List<String> keywords = extractValues("キーワード: ");
+        List<String> extensions = extractValues("拡張子: ");
+        settings.writeConfig(selectedWatchFolder, selectedDestinationFolder, keywords, extensions);
+    }
+
+    private void loadSavedRule(TextField watchFolderField, TextField destinationField, TextArea logArea) {
+        PropertySettings.SavedConfig saved = settings.readConfig();
+        if (saved == null) {
+            appendLog(logArea, "保存済みルールはありません。");
+            return;
+        }
+
+        if (saved.getWatchPath() != null && !saved.getWatchPath().isBlank()) {
+            selectedWatchFolder = new File(saved.getWatchPath());
+            watchFolderField.setText(selectedWatchFolder.getAbsolutePath());
+        }
+        if (saved.getDestinationPath() != null && !saved.getDestinationPath().isBlank()) {
+            selectedDestinationFolder = new File(saved.getDestinationPath());
+            destinationField.setText(selectedDestinationFolder.getAbsolutePath());
+            syncDestinationPreview(selectedDestinationFolder.getAbsolutePath());
+        }
+
+        saved.getKeywords().forEach(keyword -> rulePreview.add("キーワード: " + keyword));
+        saved.getExtensions().forEach(extension -> rulePreview.add("拡張子: " + extension));
+
+        if (selectedWatchFolder != null && selectedDestinationFolder != null) {
+            rules.add(createRuleSummary(selectedWatchFolder.getAbsolutePath(), selectedDestinationFolder.getAbsolutePath()));
+            appendLog(logArea, "保存済みルールを自動読み込みしました。");
+        } else {
+            appendLog(logArea, "保存済みデータを読み込みました（フォルダ設定は未完了）。");
+        }
+    }
+
+=======
+>>>>>>> ordex.gradle
     private List<String> extractValues(String prefix) {
         return rulePreview.stream()
                 .filter(item -> item.startsWith(prefix))
