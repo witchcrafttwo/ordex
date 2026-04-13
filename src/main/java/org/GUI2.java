@@ -25,6 +25,13 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.awt.AWTException;
+import java.awt.CheckboxMenuItem;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.SystemTray;
+import java.awt.TrayIcon;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,6 +41,7 @@ public class GUI2 {
     private final ObservableList<String> rulePreview = FXCollections.observableArrayList();
     private final PropertySettings settings = new PropertySettings();
     private final StartupManager startupManager = new StartupManager();
+    private TrayIcon trayIcon;
 
     private File selectedWatchFolder;
     private File selectedDestinationFolder;
@@ -221,6 +229,7 @@ public class GUI2 {
         stage.setMinHeight(600);
         stage.setTitle("ordex");
         stage.setScene(scene);
+        setupBackgroundMode(stage, logArea);
         stage.show();
     }
 
@@ -470,5 +479,79 @@ public class GUI2 {
             autoStartButton.setText("⊞ 自動起動 OFF");
             autoStartButton.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #0f172a; -fx-font-weight: bold;");
         }
+    }
+
+    private void setupBackgroundMode(Stage stage, TextArea logArea) {
+        javafx.application.Platform.setImplicitExit(false);
+        if (!SystemTray.isSupported()) {
+            appendLog(logArea, "この環境はシステムトレイ未対応のため、バックグラウンド動作は無効です。");
+            return;
+        }
+
+        if (trayIcon == null) {
+            trayIcon = createTrayIcon(stage, logArea);
+            try {
+                SystemTray.getSystemTray().add(trayIcon);
+            } catch (AWTException e) {
+                appendLog(logArea, "トレイアイコンの追加に失敗しました。");
+                return;
+            }
+        }
+
+        stage.setOnCloseRequest(event -> {
+            event.consume();
+            stage.hide();
+            appendLog(logArea, "バックグラウンドで動作中です（トレイアイコンから再表示できます）。");
+        });
+    }
+
+    private TrayIcon createTrayIcon(Stage stage, TextArea logArea) {
+        BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g2 = image.createGraphics();
+        g2.setColor(java.awt.Color.decode("#2563eb"));
+        g2.fillRect(0, 0, 16, 16);
+        g2.setColor(java.awt.Color.WHITE);
+        g2.drawString("O", 4, 12);
+        g2.dispose();
+
+        PopupMenu popup = new PopupMenu();
+        CheckboxMenuItem autoStartMenu = new CheckboxMenuItem("自動起動", settings.isAutoStartEnabled());
+        autoStartMenu.addItemListener(e -> {
+            boolean target = autoStartMenu.getState();
+            boolean changed = startupManager.setAutoStartEnabled(target);
+            if (!changed) {
+                autoStartMenu.setState(!target);
+                javafx.application.Platform.runLater(() -> appendLog(logArea, "トレイからの自動起動変更に失敗しました。"));
+                return;
+            }
+            settings.setAutoStartEnabled(target);
+            javafx.application.Platform.runLater(() -> appendLog(logArea, target ? "自動起動をONにしました。" : "自動起動をOFFにしました。"));
+        });
+
+        MenuItem openItem = new MenuItem("開く");
+        openItem.addActionListener(e -> javafx.application.Platform.runLater(() -> {
+            stage.show();
+            stage.toFront();
+        }));
+
+        MenuItem exitItem = new MenuItem("終了");
+        exitItem.addActionListener(e -> {
+            SystemTray.getSystemTray().remove(trayIcon);
+            javafx.application.Platform.exit();
+            System.exit(0);
+        });
+
+        popup.add(openItem);
+        popup.add(autoStartMenu);
+        popup.addSeparator();
+        popup.add(exitItem);
+
+        TrayIcon icon = new TrayIcon(image, "ordex", popup);
+        icon.setImageAutoSize(true);
+        icon.addActionListener(e -> javafx.application.Platform.runLater(() -> {
+            stage.show();
+            stage.toFront();
+        }));
+        return icon;
     }
 }
