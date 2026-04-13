@@ -67,17 +67,15 @@ public class StartupManager {
     }
 
     private String resolveLaunchTarget() {
-        String packagedExe = System.getProperty("jpackage.app-path", "");
-        if (!packagedExe.isBlank() && packagedExe.toLowerCase(Locale.ROOT).endsWith(".exe")) {
-            return quote(packagedExe) + " --hidden";
-        }
-
         Optional<String> processCommandOpt = ProcessHandle.current().info().command();
         String processCommand = processCommandOpt.orElse("");
         if (processCommand.isBlank()) {
             return null;
         }
         String lower = processCommand.toLowerCase(Locale.ROOT);
+        if (lower.contains("installer")) {
+            return null;
+        }
 
         // exe化されている場合はその実行ファイルを直接起動する
         if (lower.endsWith(".exe") && !lower.contains("java")) {
