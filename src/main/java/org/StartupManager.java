@@ -28,6 +28,10 @@ public class StartupManager {
         try {
             if (enabled) {
                 String command = "@echo off\r\n" + buildLaunchCommand();
+                String javaw = System.getProperty("java.home") + "\\bin\\javaw.exe";
+                String classPath = System.getProperty("java.class.path", "");
+                String command = "@echo off\r\n"
+                        + "start \"\" \"" + javaw + "\" -cp \"" + classPath + "\" org.Main\r\n";
                 Files.writeString(startupScript.toPath(), command, StandardCharsets.UTF_8);
             } else {
                 Files.deleteIfExists(startupScript.toPath());
