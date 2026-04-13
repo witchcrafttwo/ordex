@@ -236,6 +236,7 @@ public class GUI2 {
         } else {
             stage.show();
         }
+        stage.show();
     }
 
     private VBox createWatchPane(TextField watchFolderField, Button selectWatchButton) {
