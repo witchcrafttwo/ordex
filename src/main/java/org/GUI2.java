@@ -345,7 +345,6 @@ public class GUI2 {
         watcherThread.start();
     }
 
-<<<<<<< codex/find-where-to-add-processing-in-gui-code-fkahmc
     private void saveCurrentRule() {
         List<String> keywords = extractValues("キーワード: ");
         List<String> extensions = extractValues("拡張子: ");
@@ -380,8 +379,7 @@ public class GUI2 {
         }
     }
 
-=======
->>>>>>> ordex.gradle
+
     private List<String> extractValues(String prefix) {
         return rulePreview.stream()
                 .filter(item -> item.startsWith(prefix))
