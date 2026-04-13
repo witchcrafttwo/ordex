@@ -46,7 +46,7 @@ public class GUI2 {
     private File selectedWatchFolder;
     private File selectedDestinationFolder;
 
-    public void show(Stage stage) {
+    public void show(Stage stage, boolean startHidden) {
         TextField watchFolderField = new TextField();
         watchFolderField.setEditable(false);
 
@@ -230,6 +230,12 @@ public class GUI2 {
         stage.setTitle("ordex");
         stage.setScene(scene);
         setupBackgroundMode(stage, logArea);
+        if (startHidden) {
+            stage.hide();
+            appendLog(logArea, "自動起動のためバックグラウンドで開始しました。");
+        } else {
+            stage.show();
+        }
         stage.show();
     }
 
