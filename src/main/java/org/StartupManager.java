@@ -73,20 +73,20 @@ public class StartupManager {
 
         // exe化されている場合はその実行ファイルを直接起動する
         if (lower.endsWith(".exe") && !lower.contains("java")) {
-            return processCommand;
+            return "\"" + processCommand + "\" --hidden";
         }
 
         String[] args = ProcessHandle.current().info().arguments().orElse(new String[0]);
         for (int i = 0; i < args.length - 1; i++) {
             if ("-jar".equals(args[i])) {
-                return "\"" + processCommand + "\" -jar \"" + args[i + 1] + "\"";
+                return "\"" + processCommand + "\" -jar \"" + args[i + 1] + "\" --hidden";
             }
         }
 
         // フォールバック: これまで通りjavaw + classpath（開発起動向け）
         String javaw = System.getProperty("java.home") + "\\bin\\javaw.exe";
         String classPath = System.getProperty("java.class.path", "");
-        return "\"" + javaw + "\" -cp \"" + classPath + "\" org.Main";
+        return "\"" + javaw + "\" -cp \"" + classPath + "\" org.Main --hidden";
     }
 
     private String readProcessOutput(InputStream inputStream) {
