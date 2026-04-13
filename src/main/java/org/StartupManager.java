@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Locale;
+import java.util.Optional;
 
 public class StartupManager {
     private static final String STARTUP_FILE_NAME = "ordex-autostart.bat";
@@ -25,6 +27,7 @@ public class StartupManager {
 
         try {
             if (enabled) {
+                String command = "@echo off\r\n" + buildLaunchCommand();
                 String javaw = System.getProperty("java.home") + "\\bin\\javaw.exe";
                 String classPath = System.getProperty("java.class.path", "");
                 String command = "@echo off\r\n"
@@ -54,5 +57,28 @@ public class StartupManager {
             return null;
         }
         return new File(startupDir, STARTUP_FILE_NAME);
+    }
+
+    private String buildLaunchCommand() {
+        Optional<String> processCommandOpt = ProcessHandle.current().info().command();
+        String processCommand = processCommandOpt.orElse("");
+        String lower = processCommand.toLowerCase(Locale.ROOT);
+
+        // exe化されている場合はその実行ファイルを直接起動する
+        if (lower.endsWith(".exe") && !lower.contains("java")) {
+            return "start \"\" \"" + processCommand + "\"\r\n";
+        }
+
+        String[] args = ProcessHandle.current().info().arguments().orElse(new String[0]);
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("-jar".equals(args[i])) {
+                return "start \"\" \"" + processCommand + "\" -jar \"" + args[i + 1] + "\"\r\n";
+            }
+        }
+
+        // フォールバック: これまで通りjavaw + classpath
+        String javaw = System.getProperty("java.home") + "\\bin\\javaw.exe";
+        String classPath = System.getProperty("java.class.path", "");
+        return "start \"\" \"" + javaw + "\" -cp \"" + classPath + "\" org.Main\r\n";
     }
 }
