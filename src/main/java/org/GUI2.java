@@ -133,6 +133,7 @@ public class GUI2 {
             rules.add(summary);
             saveCurrentRule();
             appendLog(logArea, "ルールを追加しました。");
+            startWatch(logArea);
         });
 
         Button clearPreviewButton = new Button("入力クリア");
@@ -146,6 +147,9 @@ public class GUI2 {
             appendLog(logArea, "入力中のルールをクリアしました。");
         });
 
+        Button deleteRuleButton = new Button("ルール削除");
+        deleteRuleButton.setMaxWidth(Double.MAX_VALUE);
+        deleteRuleButton.setOnAction(e -> deleteSelectedRule(ruleListView, watchFolderField, destinationField, keywordField, extensionField, logArea));
         Button startWatchButton = new Button("監視開始");
         startWatchButton.setMaxWidth(Double.MAX_VALUE);
         startWatchButton.setOnAction(e -> startWatch(logArea));
@@ -169,6 +173,7 @@ public class GUI2 {
                 selectDestinationButton,
                 addRuleButton,
                 clearPreviewButton,
+                deleteRuleButton);
                 startWatchButton);
 
         GridPane centerGrid = new GridPane();
@@ -233,6 +238,7 @@ public class GUI2 {
             Button selectDestinationButton,
             Button addRuleButton,
             Button clearPreviewButton,
+            Button deleteRuleButton) {
             Button startWatchButton) {
         Label title = new Label("ルール");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
@@ -253,10 +259,15 @@ public class GUI2 {
         addFormRow(form, 1, "拡張子", extensionField, addExtensionButton);
         addFormRow(form, 2, "保存先", destinationField, selectDestinationButton);
 
+        HBox actionRow = new HBox(8, addRuleButton, clearPreviewButton, deleteRuleButton);
+        HBox.setHgrow(addRuleButton, Priority.ALWAYS);
+        HBox.setHgrow(clearPreviewButton, Priority.ALWAYS);
+        HBox.setHgrow(deleteRuleButton, Priority.ALWAYS);
         HBox actionRow = new HBox(8, addRuleButton, clearPreviewButton, startWatchButton);
         HBox.setHgrow(addRuleButton, Priority.ALWAYS);
         HBox.setHgrow(clearPreviewButton, Priority.ALWAYS);
         HBox.setHgrow(startWatchButton, Priority.ALWAYS);
+
 
         VBox pane = new VBox(12, title, form, actionRow);
         pane.setPadding(new Insets(14));
@@ -377,6 +388,31 @@ public class GUI2 {
         } else {
             appendLog(logArea, "保存済みデータを読み込みました（フォルダ設定は未完了）。");
         }
+    }
+
+    private void deleteSelectedRule(
+            ListView<String> ruleListView,
+            TextField watchFolderField,
+            TextField destinationField,
+            TextField keywordField,
+            TextField extensionField,
+            TextArea logArea) {
+        String selected = ruleListView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            appendLog(logArea, "削除するルールを選択してください。");
+            return;
+        }
+
+        rules.remove(selected);
+        rulePreview.clear();
+        selectedWatchFolder = null;
+        selectedDestinationFolder = null;
+        watchFolderField.clear();
+        destinationField.clear();
+        keywordField.clear();
+        extensionField.clear();
+        settings.writeConfig(null, null, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        appendLog(logArea, "選択したルールを削除しました。");
     }
 
 
