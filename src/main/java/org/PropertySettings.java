@@ -20,8 +20,6 @@ public class PropertySettings {
         private final boolean autoStartEnabled;
 
         public SavedConfig(String watchPath, String destinationPath, ArrayList<String> keywords, ArrayList<String> extensions, boolean autoStartEnabled) {
-
-        public SavedConfig(String watchPath, String destinationPath, ArrayList<String> keywords, ArrayList<String> extensions) {
             this.watchPath = watchPath;
             this.destinationPath = destinationPath;
             this.keywords = keywords;
@@ -59,7 +57,6 @@ public class PropertySettings {
         Properties write = loadAllProperties();
 
         clearRuleKeys(write);
-        Properties write = new Properties();
 
         if (watchFolder != null) {
             write.setProperty("watchPath", watchFolder.getAbsolutePath());
@@ -126,55 +123,6 @@ public class PropertySettings {
 
     public void Write(ArrayList<String> keyword ,ArrayList<String> extension){
         writeConfig(null, null, keyword, extension);
-        File savePath = getDefaultSavePath();
-        savePath.getParentFile().mkdirs();
-        Path = savePath;
-        try (OutputStreamWriter out = new OutputStreamWriter(
-                new FileOutputStream(savePath, false),
-                StandardCharsets.UTF_8)) {
-            write.store(out, "ordex settings");
-        } catch(IOException e){
-            System.out.println("書き込みエラー" + e.getMessage());
-        }
-    }
-
-    public SavedConfig readConfig() {
-        File path = getDefaultSavePath();
-        if (!path.exists()) {
-            return null;
-        }
-
-        Properties read = new Properties();
-        ArrayList<String> key = new ArrayList<>();
-        ArrayList<String> ext = new ArrayList<>();
-        try(Reader reader = new InputStreamReader(new FileInputStream(path), StandardCharsets.UTF_8)){
-            read.load(reader);
-            for(int index = 0;;index++) {
-                String keyword = read.getProperty("keyword" + index);
-                String extension = read.getProperty("extension" + index);
-                if(keyword == null && extension == null ){
-                    break;
-                }
-                if(keyword != null ) {
-                    key.add(keyword);
-                }
-                if(extension != null){
-                    ext.add(extension);
-                }
-            }
-        } catch(IOException e){
-            System.out.println("読み込みエラー" + e.getMessage());
-        }
-
-        return new SavedConfig(
-                read.getProperty("watchPath"),
-                read.getProperty("destinationPath"),
-                key,
-                ext);
-    }
-
-    public void Write(ArrayList<String> keyword ,ArrayList<String> extension){
-        writeConfig(null, null, keyword, extension);
     }
 
 
@@ -230,4 +178,3 @@ public class PropertySettings {
         }
     }
 }
-    }
