@@ -32,6 +32,7 @@ import java.awt.PopupMenu;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,6 +41,7 @@ public class GUI2 {
     private final boolean startInTray;
     private final ObservableList<String> rules = FXCollections.observableArrayList();
     private final ObservableList<String> rulePreview = FXCollections.observableArrayList();
+    private final ArrayList<PropertySettings.SavedRule> savedRules = new ArrayList<>();
     private final PropertySettings settings = new PropertySettings();
     private final StartupManager startupManager = new StartupManager();
     private TrayIcon trayIcon;
@@ -179,6 +181,10 @@ public class GUI2 {
         ruleListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue == null) {
                 return;
+            }
+            int selectedIndex = ruleListView.getSelectionModel().getSelectedIndex();
+            if (selectedIndex >= 0 && selectedIndex < savedRules.size()) {
+                loadRuleToEditor(savedRules.get(selectedIndex), watchFolderField, destinationField);
             }
             appendLog(logArea, "ルールを選択しました: " + newValue);
         });
@@ -388,35 +394,32 @@ public class GUI2 {
     private void saveCurrentRule() {
         List<String> keywords = extractValues("キーワード: ");
         List<String> extensions = extractValues("拡張子: ");
-        settings.writeConfig(selectedWatchFolder, selectedDestinationFolder, keywords, extensions);
+        PropertySettings.SavedRule rule = new PropertySettings.SavedRule(
+                selectedWatchFolder.getAbsolutePath(),
+                selectedDestinationFolder.getAbsolutePath(),
+                keywords,
+                extensions);
+        savedRules.add(rule);
+        settings.writeRules(savedRules);
     }
 
     private void loadSavedRule(TextField watchFolderField, TextField destinationField, TextArea logArea) {
-        PropertySettings.SavedConfig saved = settings.readConfig();
-        if (saved == null) {
+        savedRules.clear();
+        savedRules.addAll(settings.readRules());
+        if (savedRules.isEmpty()) {
             appendLog(logArea, "保存済みルールはありません。");
             return;
         }
 
-        if (saved.getWatchPath() != null && !saved.getWatchPath().isBlank()) {
-            selectedWatchFolder = new File(saved.getWatchPath());
-            watchFolderField.setText(selectedWatchFolder.getAbsolutePath());
-        }
-        if (saved.getDestinationPath() != null && !saved.getDestinationPath().isBlank()) {
-            selectedDestinationFolder = new File(saved.getDestinationPath());
-            destinationField.setText(selectedDestinationFolder.getAbsolutePath());
-            syncDestinationPreview(selectedDestinationFolder.getAbsolutePath());
+        rules.clear();
+        for (PropertySettings.SavedRule savedRule : savedRules) {
+            String watchPath = savedRule.getWatchPath() == null ? "(未設定)" : savedRule.getWatchPath();
+            String destinationPath = savedRule.getDestinationPath() == null ? "(未設定)" : savedRule.getDestinationPath();
+            rules.add(createRuleSummary(watchPath, destinationPath, savedRule.getKeywords().size(), savedRule.getExtensions().size()));
         }
 
-        saved.getKeywords().forEach(keyword -> rulePreview.add("キーワード: " + keyword));
-        saved.getExtensions().forEach(extension -> rulePreview.add("拡張子: " + extension));
-
-        if (selectedWatchFolder != null && selectedDestinationFolder != null) {
-            rules.add(createRuleSummary(selectedWatchFolder.getAbsolutePath(), selectedDestinationFolder.getAbsolutePath()));
-            appendLog(logArea, "保存済みルールを自動読み込みしました。");
-        } else {
-            appendLog(logArea, "保存済みデータを読み込みました（フォルダ設定は未完了）。");
-        }
+        loadRuleToEditor(savedRules.get(0), watchFolderField, destinationField);
+        appendLog(logArea, "保存済みルールを " + savedRules.size() + " 件読み込みました。");
     }
 
 
@@ -444,7 +447,14 @@ public class GUI2 {
             return;
         }
 
-        rules.remove(selected);
+        int selectedIndex = ruleListView.getSelectionModel().getSelectedIndex();
+        if (selectedIndex >= 0 && selectedIndex < rules.size()) {
+            rules.remove(selectedIndex);
+        }
+        if (selectedIndex >= 0 && selectedIndex < savedRules.size()) {
+            savedRules.remove(selectedIndex);
+            settings.writeRules(savedRules);
+        }
         rulePreview.clear();
         selectedWatchFolder = null;
         selectedDestinationFolder = null;
@@ -452,8 +462,43 @@ public class GUI2 {
         destinationField.clear();
         keywordField.clear();
         extensionField.clear();
-        settings.clearConfig();
+        if (savedRules.isEmpty()) {
+            settings.clearConfig();
+        } else {
+            loadRuleToEditor(savedRules.get(0), watchFolderField, destinationField);
+        }
         appendLog(logArea, "選択したルールを削除しました。");
+    }
+
+    private void loadRuleToEditor(PropertySettings.SavedRule rule, TextField watchFolderField, TextField destinationField) {
+        rulePreview.clear();
+
+        if (rule.getWatchPath() != null && !rule.getWatchPath().isBlank()) {
+            selectedWatchFolder = new File(rule.getWatchPath());
+            watchFolderField.setText(selectedWatchFolder.getAbsolutePath());
+        } else {
+            selectedWatchFolder = null;
+            watchFolderField.clear();
+        }
+
+        if (rule.getDestinationPath() != null && !rule.getDestinationPath().isBlank()) {
+            selectedDestinationFolder = new File(rule.getDestinationPath());
+            destinationField.setText(selectedDestinationFolder.getAbsolutePath());
+            syncDestinationPreview(selectedDestinationFolder.getAbsolutePath());
+        } else {
+            selectedDestinationFolder = null;
+            destinationField.clear();
+        }
+
+        rule.getKeywords().forEach(keyword -> rulePreview.add("キーワード: " + keyword));
+        rule.getExtensions().forEach(extension -> rulePreview.add("拡張子: " + extension));
+    }
+
+    private String createRuleSummary(String watchPath, String destinationPath, int keywordCount, int extensionCount) {
+        return "監視: " + watchPath
+                + " | 保存先: " + destinationPath
+                + " | キーワード " + keywordCount
+                + "件 | 拡張子 " + extensionCount + "件";
     }
 
     private List<String> extractValues(String prefix) {

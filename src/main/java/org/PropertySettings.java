@@ -10,7 +10,38 @@ import java.util.Set;
 
 public class PropertySettings {
     private static final String FileName = "ordex.properties";
+    private static final String RULE_COUNT_KEY = "rule.count";
     File Path;
+
+    public static class SavedRule {
+        private final String watchPath;
+        private final String destinationPath;
+        private final ArrayList<String> keywords;
+        private final ArrayList<String> extensions;
+
+        public SavedRule(String watchPath, String destinationPath, List<String> keywords, List<String> extensions) {
+            this.watchPath = watchPath;
+            this.destinationPath = destinationPath;
+            this.keywords = new ArrayList<>(keywords);
+            this.extensions = new ArrayList<>(extensions);
+        }
+
+        public String getWatchPath() {
+            return watchPath;
+        }
+
+        public String getDestinationPath() {
+            return destinationPath;
+        }
+
+        public ArrayList<String> getKeywords() {
+            return new ArrayList<>(keywords);
+        }
+
+        public ArrayList<String> getExtensions() {
+            return new ArrayList<>(extensions);
+        }
+    }
 
     public static class SavedConfig {
         private final String watchPath;
@@ -54,37 +85,73 @@ public class PropertySettings {
     }
 
     public void writeConfig(File watchFolder, File destinationFolder, List<String> keyword, List<String> extension){
+        String watchPath = watchFolder == null ? null : watchFolder.getAbsolutePath();
+        String destinationPath = destinationFolder == null ? null : destinationFolder.getAbsolutePath();
+        SavedRule singleRule = new SavedRule(watchPath, destinationPath, keyword, extension);
+        writeRules(List.of(singleRule));
+    }
+
+    public void clearConfig() {
         Properties write = loadAllProperties();
+        clearAllRuleKeys(write);
+        saveProperties(write);
+    }
 
-        clearRuleKeys(write);
+    public void writeRules(List<SavedRule> rules) {
+        Properties write = loadAllProperties();
+        clearAllRuleKeys(write);
+        write.setProperty(RULE_COUNT_KEY, String.valueOf(rules.size()));
 
-        if (watchFolder != null) {
-            write.setProperty("watchPath", watchFolder.getAbsolutePath());
-        }
-        if (destinationFolder != null) {
-            write.setProperty("destinationPath", destinationFolder.getAbsolutePath());
-        }
-
-        int index = 0;
-        for(String key : keyword){
-            write.setProperty("keyword" + index, key);
-            index++;
-        }
-        index = 0;
-        for(String ext : extension){
-            write.setProperty("extension" + index, ext);
-            index++;
+        for (int ruleIndex = 0; ruleIndex < rules.size(); ruleIndex++) {
+            SavedRule rule = rules.get(ruleIndex);
+            String prefix = "rule." + ruleIndex + ".";
+            if (rule.getWatchPath() != null && !rule.getWatchPath().isBlank()) {
+                write.setProperty(prefix + "watchPath", rule.getWatchPath());
+            }
+            if (rule.getDestinationPath() != null && !rule.getDestinationPath().isBlank()) {
+                write.setProperty(prefix + "destinationPath", rule.getDestinationPath());
+            }
+            for (int keyIndex = 0; keyIndex < rule.getKeywords().size(); keyIndex++) {
+                write.setProperty(prefix + "keyword." + keyIndex, rule.getKeywords().get(keyIndex));
+            }
+            for (int extIndex = 0; extIndex < rule.getExtensions().size(); extIndex++) {
+                write.setProperty(prefix + "extension." + extIndex, rule.getExtensions().get(extIndex));
+            }
         }
 
         saveProperties(write);
     }
 
-    public void clearConfig() {
-        Properties write = loadAllProperties();
-        write.remove("watchPath");
-        write.remove("destinationPath");
-        clearRuleKeys(write);
-        saveProperties(write);
+    public ArrayList<SavedRule> readRules() {
+        Properties read = loadAllProperties();
+        ArrayList<SavedRule> savedRules = new ArrayList<>();
+
+        int ruleCount = parseRuleCount(read.getProperty(RULE_COUNT_KEY));
+        if (ruleCount <= 0) {
+            SavedConfig legacy = readLegacySingleConfig(read);
+            if (legacy != null) {
+                savedRules.add(new SavedRule(
+                        legacy.getWatchPath(),
+                        legacy.getDestinationPath(),
+                        legacy.getKeywords(),
+                        legacy.getExtensions()));
+            }
+            return savedRules;
+        }
+
+        for (int ruleIndex = 0; ruleIndex < ruleCount; ruleIndex++) {
+            String prefix = "rule." + ruleIndex + ".";
+            ArrayList<String> keywords = readSequentialValues(read, prefix + "keyword.");
+            ArrayList<String> extensions = readSequentialValues(read, prefix + "extension.");
+            String watchPath = read.getProperty(prefix + "watchPath");
+            String destinationPath = read.getProperty(prefix + "destinationPath");
+
+            if (watchPath == null && destinationPath == null && keywords.isEmpty() && extensions.isEmpty()) {
+                continue;
+            }
+            savedRules.add(new SavedRule(watchPath, destinationPath, keywords, extensions));
+        }
+        return savedRules;
     }
 
     public SavedConfig readConfig() {
@@ -94,27 +161,16 @@ public class PropertySettings {
         }
 
         Properties read = loadAllProperties();
-        ArrayList<String> key = new ArrayList<>();
-        ArrayList<String> ext = new ArrayList<>();
-        for(int index = 0;;index++) {
-            String keyword = read.getProperty("keyword" + index);
-            String extension = read.getProperty("extension" + index);
-            if(keyword == null && extension == null ){
-                break;
-            }
-            if(keyword != null ) {
-                key.add(keyword);
-            }
-            if(extension != null){
-                ext.add(extension);
-            }
+        ArrayList<SavedRule> rules = readRules();
+        if (rules.isEmpty()) {
+            return null;
         }
-
+        SavedRule firstRule = rules.get(0);
         return new SavedConfig(
-                read.getProperty("watchPath"),
-                read.getProperty("destinationPath"),
-                key,
-                ext,
+                firstRule.getWatchPath(),
+                firstRule.getDestinationPath(),
+                firstRule.getKeywords(),
+                firstRule.getExtensions(),
                 Boolean.parseBoolean(read.getProperty("autoStartEnabled", "false")));
     }
 
@@ -171,11 +227,57 @@ public class PropertySettings {
         }
     }
 
-    private void clearRuleKeys(Properties properties) {
+    private SavedConfig readLegacySingleConfig(Properties read) {
+        ArrayList<String> key = readSequentialValues(read, "keyword");
+        ArrayList<String> ext = readSequentialValues(read, "extension");
+        String watchPath = read.getProperty("watchPath");
+        String destinationPath = read.getProperty("destinationPath");
+
+        if (watchPath == null && destinationPath == null && key.isEmpty() && ext.isEmpty()) {
+            return null;
+        }
+
+        return new SavedConfig(
+                watchPath,
+                destinationPath,
+                key,
+                ext,
+                Boolean.parseBoolean(read.getProperty("autoStartEnabled", "false")));
+    }
+
+    private int parseRuleCount(String countText) {
+        if (countText == null) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(countText);
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private ArrayList<String> readSequentialValues(Properties read, String keyPrefix) {
+        ArrayList<String> values = new ArrayList<>();
+        for (int index = 0;; index++) {
+            String value = read.getProperty(keyPrefix + index);
+            if (value == null) {
+                break;
+            }
+            values.add(value);
+        }
+        return values;
+    }
+
+    private void clearAllRuleKeys(Properties properties) {
         Set<String> keys = properties.stringPropertyNames();
         ArrayList<String> removeKeys = new ArrayList<>();
         for (String key : keys) {
-            if (key.startsWith("keyword") || key.startsWith("extension")) {
+            if (key.equals("watchPath")
+                    || key.equals("destinationPath")
+                    || key.equals(RULE_COUNT_KEY)
+                    || key.startsWith("keyword")
+                    || key.startsWith("extension")
+                    || key.startsWith("rule.")) {
                 removeKeys.add(key);
             }
         }
