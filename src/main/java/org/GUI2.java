@@ -452,7 +452,7 @@ public class GUI2 {
         destinationField.clear();
         keywordField.clear();
         extensionField.clear();
-        settings.writeConfig(null, null, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+        settings.clearConfig();
         appendLog(logArea, "選択したルールを削除しました。");
     }
 

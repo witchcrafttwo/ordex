@@ -79,6 +79,14 @@ public class PropertySettings {
         saveProperties(write);
     }
 
+    public void clearConfig() {
+        Properties write = loadAllProperties();
+        write.remove("watchPath");
+        write.remove("destinationPath");
+        clearRuleKeys(write);
+        saveProperties(write);
+    }
+
     public SavedConfig readConfig() {
         File path = getDefaultSavePath();
         if (!path.exists()) {
@@ -164,8 +172,6 @@ public class PropertySettings {
     }
 
     private void clearRuleKeys(Properties properties) {
-        properties.remove("watchPath");
-        properties.remove("destinationPath");
         Set<String> keys = properties.stringPropertyNames();
         ArrayList<String> removeKeys = new ArrayList<>();
         for (String key : keys) {
