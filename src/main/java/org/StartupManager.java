@@ -67,12 +67,6 @@ public class StartupManager {
     }
 
     private String resolveLaunchTarget() {
-        // jpackage経由で配布したアプリはこのプロパティにランチャーexeの絶対パスが入る。
-        // Program Files 配下のようにスペースを含むパスでも、exeを直接登録した方が安定する。
-        String jpackageAppPath = System.getProperty("jpackage.app-path", "");
-        if (!jpackageAppPath.isBlank()) {
-            return quoteIfNeeded(jpackageAppPath) + " --tray";
-        }
         Optional<String> processCommandOpt = ProcessHandle.current().info().command();
         String processCommand = processCommandOpt.orElse("");
         String lower = processCommand.toLowerCase(Locale.ROOT);
