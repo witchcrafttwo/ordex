@@ -50,8 +50,9 @@ jlink {
         appVersion = "1.0.0"
         vendor = "Inoue"
         installerName = "ordexInstaller"
-        installerOptions = listOf(
-            "--win-per-user-install"
-        )
+        installerOptions.add("--install-dir")
+        installerOptions.add("MyTool")
+        installerOptions.add("--win-dir-chooser")
+        
     }
 }
