@@ -7,7 +7,11 @@ public class FileMove {
     public void Move(Path from, Path to, boolean overwrite) throws IOException {
         try {
             Thread.sleep(500);
-            Files.move(from, to);
+            if (overwrite) {
+                Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                Files.move(from, to);
+            }
         } catch (UnsupportedOperationException e) {
             System.out.println("サポートされないコピー・オプションが配列に含まれています");
         } catch(DirectoryNotEmptyException e){

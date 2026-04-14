@@ -68,8 +68,15 @@ public class FileWatcher {
                                     .anyMatch(name::contains);
 
                        if (extMatch && (kind == ENTRY_CREATE || kind == ENTRY_MODIFY) && keyMatch) {
-                            FM.Move(SfullPath, TfullPath, true);
-                            System.out.println("移動できましたよ");
+                              if (!Files.exists(SfullPath)) {
+                                continue;
+                            }
+                            try {
+                                FM.Move(SfullPath, TfullPath, true);
+                                System.out.println("移動できましたよ");
+                            } catch (IOException moveError) {
+                                System.out.println("移動できませんでした: " + moveError.getMessage());
+                            }
                         }
 
                     System.out.println(kind.name() + " : " + SfullPath);
