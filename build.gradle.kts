@@ -46,7 +46,7 @@ jlink {
     }
 
     jpackage {
-        installerType = "exe"
+        installerType = "msi"
         appVersion = "1.0.0"
         vendor = "Inoue"
         installerName = "ordexInstaller"
