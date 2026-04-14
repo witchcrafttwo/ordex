@@ -375,12 +375,43 @@ public class GUI2 {
                 .map(String::toLowerCase)
                 .collect(Collectors.toList());
 
-        appendLog(logArea, "監視処理を開始します。");
+        if (keywords.isEmpty() && extensions.isEmpty()) {
+            appendLog(logArea, "キーワードまたは拡張子を設定してください。");
+            return;
+        }
+
+        PropertySettings.SavedRule rule = new PropertySettings.SavedRule(
+                selectedWatchFolder.getAbsolutePath(),
+                selectedDestinationFolder.getAbsolutePath(),
+                keywords,
+                extensions);
+        startWatchForRule(rule, logArea);
+    }
+
+    private void startWatchForRule(PropertySettings.SavedRule rule, TextArea logArea) {
+        if (rule.getWatchPath() == null || rule.getDestinationPath() == null) {
+            appendLog(logArea, "監視設定が不完全なルールはスキップします。");
+            return;
+        }
+        if (rule.getKeywords().isEmpty() && rule.getExtensions().isEmpty()) {
+            appendLog(logArea, "条件が空のルールはスキップします。");
+            return;
+        }
+
+        File watchFolder = new File(rule.getWatchPath());
+        File destinationFolder = new File(rule.getDestinationPath());
+        List<String> keywords = rule.getKeywords();
+        List<String> extensions = rule.getExtensions()
+                .stream()
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+
+        appendLog(logArea, "監視処理を開始します: " + watchFolder.getAbsolutePath() + " -> " + destinationFolder.getAbsolutePath());
         Thread watcherThread = new Thread(() -> {
             try {
                 FileWatcher.watchservice(
-                        selectedWatchFolder,
-                        selectedDestinationFolder,
+                        watchFolder,
+                        destinationFolder,
                         new java.util.ArrayList<>(keywords),
                         new java.util.ArrayList<>(extensions));
             } catch (Exception ex) {
@@ -424,14 +455,23 @@ public class GUI2 {
 
 
     private void startWatchIfConfigured(TextArea logArea) {
-        if (selectedWatchFolder == null || selectedDestinationFolder == null) {
+        if (savedRules.isEmpty()) {
             return;
         }
-        if (extractValues("キーワード: ").isEmpty() && extractValues("拡張子: ").isEmpty()) {
-            appendLog(logArea, "保存済みルールに条件がないため監視は開始しません。");
-            return;
+        int startedCount = 0;
+        for (PropertySettings.SavedRule rule : savedRules) {
+            if (rule.getWatchPath() == null || rule.getDestinationPath() == null) {
+                continue;
+            }
+            if (rule.getKeywords().isEmpty() && rule.getExtensions().isEmpty()) {
+                continue;
+            }
+            startWatchForRule(rule, logArea);
+            startedCount++;
         }
-        startWatch(logArea);
+        if (startedCount == 0) {
+            appendLog(logArea, "保存済みルールに有効な監視条件がないため監視は開始しません。");
+        }
     }
 
     private void deleteSelectedRule(
