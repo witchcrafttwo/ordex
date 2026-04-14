@@ -51,8 +51,7 @@ jlink {
         vendor = "Inoue"
         installerName = "ordexInstaller"
         installerOptions = listOf(
-            "--win-per-user-install",
-            "--install-dir", "%USERPROFILE%\\Documents\\ordex"
+            "--win-per-user-install"
         )
     }
 }
