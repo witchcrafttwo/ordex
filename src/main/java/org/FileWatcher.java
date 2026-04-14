@@ -3,7 +3,9 @@ package org;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
+import java.nio.file.WatchEvent.Kind;
 import java.util.ArrayList;
+import java.util.Locale;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 import static java.nio.file.WatchEvent.*;
@@ -44,7 +46,7 @@ public class FileWatcher {
                     Path rel = (Path) event.context();        // 相対名
                     Path SfullPath = Spath.resolve(rel);
                     Path TfullPath = Tpath.resolve(rel);
-                    String name = rel.toString().toLowerCase();
+                    String name = rel.toString().toLowerCase(Locale.ROOT);
                     System.out.println("kind=" + kind + ", context=" + rel);
 
                     // 一時拡張子は早めに弾く
@@ -53,13 +55,19 @@ public class FileWatcher {
                     }
                     boolean extMatch =
                             extension.isEmpty()
-                                    || extension.stream().anyMatch(name::endsWith);
+                                     || extension.stream()
+                                    .filter(ext -> ext != null && !ext.isBlank())
+                                    .map(ext -> ext.toLowerCase(Locale.ROOT))
+                                    .anyMatch(name::endsWith);
 
                     boolean keyMatch =
                             keyword.isEmpty()
-                                    || keyword.stream().anyMatch(name::contains);
+                                    || keyword.stream()
+                                    .filter(key -> key != null && !key.isBlank())
+                                    .map(key -> key.toLowerCase(Locale.ROOT))
+                                    .anyMatch(name::contains);
 
-                        if (extMatch && kind == ENTRY_CREATE && keyMatch) {
+                       if (extMatch && (kind == ENTRY_CREATE || kind == ENTRY_MODIFY) && keyMatch) {
                             FM.Move(SfullPath, TfullPath, true);
                             System.out.println("移動できましたよ");
                         }
