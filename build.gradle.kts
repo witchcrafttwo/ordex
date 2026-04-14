@@ -19,7 +19,7 @@ java {
 }
 
 application {
-    mainModule.set("ordex.gradle.main")
+    mainModule.set("ordex.main")
     mainClass.set("org.Main")
 }
 
@@ -39,7 +39,7 @@ javafx {
 }
 
 jlink {
-    imageName = "MyApp"
+    imageName = "ordex"
 
     launcher {
         name = "ordex"
@@ -50,9 +50,11 @@ jlink {
         appVersion = "1.0.0"
         vendor = "Inoue"
         installerName = "ordexInstaller"
+
+        icon = "src/main/resources/ordex.ico"
+
         installerOptions.add("--install-dir")
         installerOptions.add("MyTool")
         installerOptions.add("--win-dir-chooser")
-        
     }
 }

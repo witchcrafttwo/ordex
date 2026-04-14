@@ -1,4 +1,4 @@
-module ordex.gradle.main {
+module ordex.main {
     requires java.datatransfer;
     requires java.desktop;
     requires javafx.controls;
