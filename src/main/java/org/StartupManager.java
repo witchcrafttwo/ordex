@@ -9,6 +9,7 @@ import java.util.Scanner;
 public class StartupManager {
     private static final String RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     private static final String RUN_VALUE_NAME = "ordex";
+    private static final String STARTUP_TASK_NAME = "ordex_auto_start";
 
     public boolean isSupportedPlatform() {
         String os = System.getProperty("os.name", "").toLowerCase();
@@ -27,6 +28,11 @@ public class StartupManager {
 
         try {
             if (enabled) {
+                boolean scheduled = createStartupTask(launchTarget);
+                if (scheduled) {
+                    removeRunKeyIfExists();
+                    return true;
+                }
                 Process process = new ProcessBuilder(
                         "reg", "add", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
@@ -35,12 +41,13 @@ public class StartupManager {
                         "/f").start();
                 return process.waitFor() == 0;
             } else {
+                boolean taskDeleted = deleteStartupTask();
                 Process process = new ProcessBuilder(
                         "reg", "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/f").start();
                 int exit = process.waitFor();
-                return exit == 0 || exit == 1;
+                return taskDeleted || exit == 0 || exit == 1;
             }
         } catch (IOException | InterruptedException e) {
             return false;
@@ -56,6 +63,14 @@ public class StartupManager {
             return false;
         }
         try {
+            Process taskQuery = new ProcessBuilder(
+                    "schtasks", "/Query",
+                    "/TN", STARTUP_TASK_NAME).start();
+            int taskExit = taskQuery.waitFor();
+            if (taskExit == 0) {
+                return true;
+            }
+
             Process process = new ProcessBuilder(
                     "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
             String output = readProcessOutput(process.getInputStream());
@@ -108,5 +123,32 @@ public class StartupManager {
             }
         }
         return output.toString();
+    }
+
+    private boolean createStartupTask(String launchTarget) throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(
+                "schtasks", "/Create",
+                "/TN", STARTUP_TASK_NAME,
+                "/SC", "ONLOGON",
+                "/TR", launchTarget,
+                "/F").start();
+        return process.waitFor() == 0;
+    }
+
+    private boolean deleteStartupTask() throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(
+                "schtasks", "/Delete",
+                "/TN", STARTUP_TASK_NAME,
+                "/F").start();
+        int exit = process.waitFor();
+        return exit == 0 || exit == 1;
+    }
+
+    private void removeRunKeyIfExists() throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(
+                "reg", "delete", RUN_KEY,
+                "/v", RUN_VALUE_NAME,
+                "/f").start();
+        process.waitFor();
     }
 }
