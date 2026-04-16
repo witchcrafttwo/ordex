@@ -40,6 +40,7 @@ public class StartupManager {
                 boolean shortcutUpdated = createStartupShortcut(executablePath);
                 return registryUpdated || shortcutUpdated;
             } else {
+                boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
                         "reg", "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
