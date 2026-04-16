@@ -47,6 +47,7 @@ public class StartupManager {
                         "/f"));
                 return shortcutUpdated || registryUpdated || machineRegistryUpdated;
             } else {
+                boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
                         "reg", "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
