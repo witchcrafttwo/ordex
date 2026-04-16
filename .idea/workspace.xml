@@ -5,7 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="77673a5f-6c1e-4d6b-a0b8-a2b9413fe60f" name="変更" comment="">
-      <change beforePath="$PROJECT_DIR$/README.markdown" beforeDir="false" afterPath="$PROJECT_DIR$/README.markdown" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,6 +50,7 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
@@ -88,7 +90,10 @@
       <updated>1776166228601</updated>
       <workItem from="1776166230253" duration="1193000" />
       <workItem from="1776172761781" duration="1061000" />
-      <workItem from="1776176489542" duration="452000" />
+      <workItem from="1776176489542" duration="655000" />
+      <workItem from="1776184421210" duration="739000" />
+      <workItem from="1776218384596" duration="56000" />
+      <workItem from="1776306891381" duration="845000" />
     </task>
     <servers />
   </component>
