@@ -47,6 +47,7 @@ public class StartupManager {
                         "/f"));
                 return shortcutUpdated || registryUpdated || machineRegistryUpdated;
             } else {
+                boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
                         "reg", "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
@@ -107,6 +108,18 @@ public class StartupManager {
         if (executablePath != null && !executablePath.isBlank()) {
             return quoteIfNeeded(executablePath) + " --tray";
         }
+        return null;
+    }
+
+    private String resolveLaunchTarget() {
+        String executablePath = resolveExecutablePath();
+        if (executablePath != null && !executablePath.isBlank()) {
+            return quoteIfNeeded(executablePath) + " --tray";
+        }
+
+        // exe化されている場合はその実行ファイルを直接起動する
+        Optional<String> processCommandOpt = ProcessHandle.current().info().command();
+        String processCommand = processCommandOpt.orElse("");
 
         // exe化されている場合はその実行ファイルを直接起動する
         Optional<String> processCommandOpt = ProcessHandle.current().info().command();
