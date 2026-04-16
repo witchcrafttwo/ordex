@@ -184,6 +184,11 @@ public class StartupManager {
         }
     }
 
+    // 旧実装との互換性維持用（deleteStartupScript を参照している古いコード向け）
+    private boolean deleteStartupScript() {
+        return deleteStartupShortcut();
+    }
+
     private boolean isStartupShortcutRegistered() {
         Path shortcutPath = getStartupShortcutPath();
         if (shortcutPath == null || !Files.exists(shortcutPath)) {
