@@ -10,6 +10,7 @@ import java.util.Scanner;
 
 public class StartupManager {
     private static final String RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    private static final String MACHINE_RUN_KEY = "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     private static final String RUN_VALUE_NAME = "ordex";
     private static final String STARTUP_SHORTCUT_NAME = "ordex.lnk";
 
@@ -31,14 +32,20 @@ public class StartupManager {
 
         try {
             if (enabled) {
+                boolean shortcutUpdated = createStartupShortcut(executablePath);
                 boolean registryUpdated = runProcess(new ProcessBuilder(
                         "reg", "add", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/t", "REG_SZ",
                         "/d", launchTarget,
                         "/f"));
-                boolean shortcutUpdated = createStartupShortcut(executablePath);
-                return registryUpdated || shortcutUpdated;
+                boolean machineRegistryUpdated = runProcess(new ProcessBuilder(
+                        "reg", "add", MACHINE_RUN_KEY,
+                        "/v", RUN_VALUE_NAME,
+                        "/t", "REG_SZ",
+                        "/d", launchTarget,
+                        "/f"));
+                return shortcutUpdated || registryUpdated || machineRegistryUpdated;
             } else {
                 boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
@@ -47,8 +54,14 @@ public class StartupManager {
                         "/f").start();
                 int exit = process.waitFor();
                 boolean registryDeleted = exit == 0 || exit == 1;
+                Process machineProcess = new ProcessBuilder(
+                        "reg", "delete", MACHINE_RUN_KEY,
+                        "/v", RUN_VALUE_NAME,
+                        "/f").start();
+                int machineExit = machineProcess.waitFor();
+                boolean machineRegistryDeleted = machineExit == 0 || machineExit == 1;
                 boolean shortcutDeleted = deleteStartupShortcut();
-                return registryDeleted || shortcutDeleted;
+                return registryDeleted || machineRegistryDeleted || shortcutDeleted;
             }
         } catch (IOException | InterruptedException e) {
             return false;
@@ -64,13 +77,9 @@ public class StartupManager {
             return false;
         }
         try {
-            Process process = new ProcessBuilder(
-                    "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
-            String output = readProcessOutput(process.getInputStream());
-            int exit = process.waitFor();
-            boolean registryMatched = exit == 0
-                    && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
-            return registryMatched || isStartupShortcutRegistered();
+            boolean registryMatched = queryRunKeyContains(RUN_KEY, launchTarget);
+            boolean machineRegistryMatched = queryRunKeyContains(MACHINE_RUN_KEY, launchTarget);
+            return registryMatched || machineRegistryMatched || isStartupShortcutRegistered();
         } catch (IOException | InterruptedException e) {
             return false;
         }
@@ -128,6 +137,14 @@ public class StartupManager {
             }
         }
         return output.toString();
+    }
+
+    private boolean queryRunKeyContains(String keyPath, String launchTarget) throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(
+                "reg", "query", keyPath, "/v", RUN_VALUE_NAME).start();
+        String output = readProcessOutput(process.getInputStream());
+        int exit = process.waitFor();
+        return exit == 0 && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
     }
 
     private boolean runProcess(ProcessBuilder processBuilder) throws IOException, InterruptedException {
