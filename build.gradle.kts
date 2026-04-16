@@ -47,14 +47,16 @@ jlink {
 
     jpackage {
         installerType = "msi"
-        appVersion = "1.0.0"
+        appVersion = "1.0.1"
         vendor = "witchcrafttwo"
         installerName = "ordexInstaller"
         icon = "src/main/resources/ordex.ico"
 
+        installerOptions.add("--win-per-user-install")
         installerOptions.add("--install-dir")
         installerOptions.add("ordex")
         installerOptions.add("--win-dir-chooser")
+
 
         installerOptions.add("--win-menu")
         installerOptions.add("--win-shortcut")
