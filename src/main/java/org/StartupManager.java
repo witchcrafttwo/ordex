@@ -2,6 +2,9 @@ package org;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Scanner;
@@ -9,6 +12,7 @@ import java.util.Scanner;
 public class StartupManager {
     private static final String RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     private static final String RUN_VALUE_NAME = "ordex";
+    private static final String STARTUP_SCRIPT_NAME = "ordex-startup.cmd";
 
     public boolean isSupportedPlatform() {
         String os = System.getProperty("os.name", "").toLowerCase();
@@ -27,20 +31,22 @@ public class StartupManager {
 
         try {
             if (enabled) {
-                Process process = new ProcessBuilder(
+                boolean registryUpdated = runProcess(new ProcessBuilder(
                         "reg", "add", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/t", "REG_SZ",
                         "/d", launchTarget,
-                        "/f").start();
-                return process.waitFor() == 0;
+                        "/f"));
+                boolean scriptUpdated = createStartupScript(launchTarget);
+                return registryUpdated || scriptUpdated;
             } else {
+                boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
                         "reg", "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/f").start();
                 int exit = process.waitFor();
-                return exit == 0 || exit == 1;
+                return scriptDeleted && (exit == 0 || exit == 1);
             }
         } catch (IOException | InterruptedException e) {
             return false;
@@ -60,7 +66,9 @@ public class StartupManager {
                     "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
             String output = readProcessOutput(process.getInputStream());
             int exit = process.waitFor();
-            return exit == 0 && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
+            boolean registryMatches = exit == 0
+                    && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
+            return registryMatches || startupScriptContains(launchTarget);
         } catch (IOException | InterruptedException e) {
             return false;
         }
@@ -108,5 +116,66 @@ public class StartupManager {
             }
         }
         return output.toString();
+    }
+
+    private boolean runProcess(ProcessBuilder processBuilder) throws IOException, InterruptedException {
+        Process process = processBuilder.start();
+        return process.waitFor() == 0;
+    }
+
+    private boolean createStartupScript(String launchTarget) {
+        Path scriptPath = getStartupScriptPath();
+        if (scriptPath == null) {
+            return false;
+        }
+
+        try {
+            Files.createDirectories(scriptPath.getParent());
+            String scriptBody = "@echo off\r\n" + launchTarget + "\r\n";
+            Files.writeString(scriptPath, scriptBody, StandardCharsets.UTF_8);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean deleteStartupScript() {
+        Path scriptPath = getStartupScriptPath();
+        if (scriptPath == null) {
+            return false;
+        }
+        try {
+            return !Files.exists(scriptPath) || Files.deleteIfExists(scriptPath);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean startupScriptContains(String launchTarget) {
+        Path scriptPath = getStartupScriptPath();
+        if (scriptPath == null || !Files.exists(scriptPath)) {
+            return false;
+        }
+        try {
+            String content = Files.readString(scriptPath, StandardCharsets.UTF_8);
+            return content.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private Path getStartupScriptPath() {
+        String appData = System.getenv("APPDATA");
+        if (appData == null || appData.isBlank()) {
+            return null;
+        }
+        return Path.of(
+                appData,
+                "Microsoft",
+                "Windows",
+                "Start Menu",
+                "Programs",
+                "Startup",
+                STARTUP_SCRIPT_NAME);
     }
 }
