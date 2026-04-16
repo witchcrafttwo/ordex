@@ -2,11 +2,11 @@ plugins {
     id("java")
     id("application")
     id("org.openjfx.javafxplugin") version "0.1.0"
-    id("org.beryx.jlink") version "3.1.5"
+    id("org.beryx.jlink") version "4.0.0"
 }
 
 group = "org"
-version = "1.0.0"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -23,6 +23,11 @@ application {
     mainClass.set("org.Main")
 }
 
+javafx {
+    version = "21"
+    modules = listOf("javafx.controls", "javafx.fxml")
+}
+
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -31,11 +36,6 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-}
-
-javafx {
-    version = "21"
-    modules = listOf("javafx.controls", "javafx.fxml")
 }
 
 jlink {
@@ -50,17 +50,18 @@ jlink {
         appVersion = "1.0.1"
         vendor = "witchcrafttwo"
         installerName = "ordexInstaller"
+        imageName = "ordex"
         icon = "src/main/resources/ordex.ico"
 
-        installerOptions.add("--win-per-user-install")
-        installerOptions.add("--install-dir")
-        installerOptions.add("ordex")
-        installerOptions.add("--win-dir-chooser")
+        installerOptions = listOf(
+            "--win-menu",
+            "--win-menu-group", "ordex",
+            "--win-shortcut",
+            "--win-per-user-install",
+            "--install-dir",
+            "ordex",
+            "--win-dir-chooser"
+        )
 
-
-        installerOptions.add("--win-menu")
-        installerOptions.add("--win-shortcut")
-        installerOptions.add("--win-menu-group")
-        installerOptions.add("ordex")
     }
 }
