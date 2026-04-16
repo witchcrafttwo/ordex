@@ -37,10 +37,8 @@ public class StartupManager {
                         "/t", "REG_SZ",
                         "/d", launchTarget,
                         "/f"));
-                if (!registryUpdated) {
-                    return false;
-                }
-                return createStartupScript(launchTarget);
+                boolean scriptUpdated = createStartupScript(launchTarget);
+                return registryUpdated || scriptUpdated;
             } else {
                 boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
@@ -68,10 +66,9 @@ public class StartupManager {
                     "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
             String output = readProcessOutput(process.getInputStream());
             int exit = process.waitFor();
-            if (exit == 0 && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT))) {
-                return startupScriptContains(launchTarget);
-            }
-            return false;
+            boolean registryMatches = exit == 0
+                    && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
+            return registryMatches || startupScriptContains(launchTarget);
         } catch (IOException | InterruptedException e) {
             return false;
         }
