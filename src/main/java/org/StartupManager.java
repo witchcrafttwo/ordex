@@ -86,6 +86,14 @@ public class StartupManager {
     }
 
     private String resolveExecutablePath() {
+        String jpackagePath = System.getProperty("jpackage.app-path", "").trim();
+        if (!jpackagePath.isBlank()) {
+            String lower = jpackagePath.toLowerCase(Locale.ROOT);
+            if (lower.endsWith(".exe") && !lower.contains("java")) {
+                return jpackagePath;
+            }
+        }
+
         Optional<String> processCommandOpt = ProcessHandle.current().info().command();
         String processCommand = processCommandOpt.orElse("");
         String lower = processCommand.toLowerCase(Locale.ROOT);
@@ -96,14 +104,14 @@ public class StartupManager {
     }
 
     private String resolveLaunchTarget() {
-        Optional<String> processCommandOpt = ProcessHandle.current().info().command();
-        String processCommand = processCommandOpt.orElse("");
-        String lower = processCommand.toLowerCase(Locale.ROOT);
+        String executablePath = resolveExecutablePath();
+        if (executablePath != null && !executablePath.isBlank()) {
+            return quoteIfNeeded(executablePath) + " --tray";
+        }
 
         // exe化されている場合はその実行ファイルを直接起動する
-        if (lower.endsWith(".exe") && !lower.contains("java")) {
-            return quoteIfNeeded(processCommand) + " --tray";
-        }
+        Optional<String> processCommandOpt = ProcessHandle.current().info().command();
+        String processCommand = processCommandOpt.orElse("");
 
         String[] args = ProcessHandle.current().info().arguments().orElse(new String[0]);
         for (int i = 0; i < args.length - 1; i++) {
