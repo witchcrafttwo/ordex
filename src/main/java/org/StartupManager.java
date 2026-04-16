@@ -2,7 +2,6 @@ package org;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -12,7 +11,7 @@ import java.util.Scanner;
 public class StartupManager {
     private static final String RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     private static final String RUN_VALUE_NAME = "ordex";
-    private static final String STARTUP_SCRIPT_NAME = "ordex-startup.cmd";
+    private static final String STARTUP_SHORTCUT_NAME = "ordex.lnk";
 
     public boolean isSupportedPlatform() {
         String os = System.getProperty("os.name", "").toLowerCase();
@@ -28,6 +27,7 @@ public class StartupManager {
         if (launchTarget == null || launchTarget.isBlank()) {
             return false;
         }
+        String executablePath = resolveExecutablePath();
 
         try {
             if (enabled) {
@@ -37,8 +37,8 @@ public class StartupManager {
                         "/t", "REG_SZ",
                         "/d", launchTarget,
                         "/f"));
-                boolean scriptUpdated = createStartupScript(launchTarget);
-                return registryUpdated || scriptUpdated;
+                boolean shortcutUpdated = createStartupShortcut(executablePath);
+                return registryUpdated || shortcutUpdated;
             } else {
                 boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
@@ -46,7 +46,9 @@ public class StartupManager {
                         "/v", RUN_VALUE_NAME,
                         "/f").start();
                 int exit = process.waitFor();
-                return scriptDeleted && (exit == 0 || exit == 1);
+                boolean registryDeleted = exit == 0 || exit == 1;
+                boolean shortcutDeleted = deleteStartupShortcut();
+                return registryDeleted || shortcutDeleted;
             }
         } catch (IOException | InterruptedException e) {
             return false;
@@ -66,12 +68,22 @@ public class StartupManager {
                     "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
             String output = readProcessOutput(process.getInputStream());
             int exit = process.waitFor();
-            boolean registryMatches = exit == 0
+            boolean registryMatched = exit == 0
                     && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
-            return registryMatches || startupScriptContains(launchTarget);
+            return registryMatched || isStartupShortcutRegistered();
         } catch (IOException | InterruptedException e) {
             return false;
         }
+    }
+
+    private String resolveExecutablePath() {
+        Optional<String> processCommandOpt = ProcessHandle.current().info().command();
+        String processCommand = processCommandOpt.orElse("");
+        String lower = processCommand.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".exe") && !lower.contains("java")) {
+            return processCommand;
+        }
+        return null;
     }
 
     private String resolveLaunchTarget() {
@@ -116,6 +128,63 @@ public class StartupManager {
             }
         }
         return output.toString();
+    }
+
+    private boolean runProcess(ProcessBuilder processBuilder) throws IOException, InterruptedException {
+        Process process = processBuilder.start();
+        return process.waitFor() == 0;
+    }
+
+    private boolean createStartupShortcut(String executablePath) throws IOException, InterruptedException {
+        if (executablePath == null || executablePath.isBlank()) {
+            return false;
+        }
+        Path shortcutPath = getStartupShortcutPath();
+        if (shortcutPath == null) {
+            return false;
+        }
+        Files.createDirectories(shortcutPath.getParent());
+        String workingDirectory = Path.of(executablePath).getParent().toString();
+        String script = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('"
+                + escapeForPowerShell(shortcutPath.toString())
+                + "');"
+                + "$s.TargetPath='" + escapeForPowerShell(executablePath) + "';"
+                + "$s.Arguments='--tray';"
+                + "$s.WorkingDirectory='" + escapeForPowerShell(workingDirectory) + "';"
+                + "$s.Save()";
+        return runProcess(new ProcessBuilder("powershell", "-NoProfile", "-Command", script));
+    }
+
+    private boolean deleteStartupShortcut() {
+        Path shortcutPath = getStartupShortcutPath();
+        if (shortcutPath == null) {
+            return false;
+        }
+        try {
+            return !Files.exists(shortcutPath) || Files.deleteIfExists(shortcutPath);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean isStartupShortcutRegistered() {
+        Path shortcutPath = getStartupShortcutPath();
+        if (shortcutPath == null || !Files.exists(shortcutPath)) {
+            return false;
+        }
+        return true;
+    }
+
+    private Path getStartupShortcutPath() {
+        String appData = System.getenv("APPDATA");
+        if (appData == null || appData.isBlank()) {
+            return null;
+        }
+        return Path.of(appData, "Microsoft", "Windows", "Start Menu", "Programs", "Startup", STARTUP_SHORTCUT_NAME);
+    }
+
+    private String escapeForPowerShell(String value) {
+        return value.replace("'", "''");
     }
 
 }
