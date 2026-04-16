@@ -2,6 +2,9 @@ package org;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Scanner;
@@ -9,6 +12,7 @@ import java.util.Scanner;
 public class StartupManager {
     private static final String RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     private static final String RUN_VALUE_NAME = "ordex";
+    private static final String STARTUP_SCRIPT_NAME = "ordex-startup.cmd";
 
     public boolean isSupportedPlatform() {
         String os = System.getProperty("os.name", "").toLowerCase();
@@ -27,20 +31,22 @@ public class StartupManager {
 
         try {
             if (enabled) {
-                Process process = new ProcessBuilder(
+                boolean registryUpdated = runProcess(new ProcessBuilder(
                         "reg", "add", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/t", "REG_SZ",
                         "/d", launchTarget,
-                        "/f").start();
-                return process.waitFor() == 0;
+                        "/f"));
+                boolean scriptUpdated = createStartupScript(launchTarget);
+                return registryUpdated || scriptUpdated;
             } else {
+                boolean scriptDeleted = deleteStartupScript();
                 Process process = new ProcessBuilder(
                         "reg", "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/f").start();
                 int exit = process.waitFor();
-                return exit == 0 || exit == 1;
+                return scriptDeleted && (exit == 0 || exit == 1);
             }
         } catch (IOException | InterruptedException e) {
             return false;
@@ -60,7 +66,9 @@ public class StartupManager {
                     "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
             String output = readProcessOutput(process.getInputStream());
             int exit = process.waitFor();
-            return exit == 0 && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
+            boolean registryMatches = exit == 0
+                    && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
+            return registryMatches || startupScriptContains(launchTarget);
         } catch (IOException | InterruptedException e) {
             return false;
         }
