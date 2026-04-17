@@ -59,7 +59,6 @@ jlink {
             "--win-menu",
             "--win-menu-group", "ordex",
             "--win-shortcut",
-            "--win-per-user-install",
             "--install-dir",
             "ordex",
             "--win-dir-chooser"
