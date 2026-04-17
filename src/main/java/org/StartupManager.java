@@ -1,13 +1,13 @@
 package org;
 
-import java.io.IOException;
-import java.io.InputStream;
+import com.sun.jna.platform.win32.Advapi32Util;
+import com.sun.jna.platform.win32.WinReg;
+
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Scanner;
 
 public class StartupManager {
-    private static final String RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    private static final String RUN_KEY = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     private static final String RUN_VALUE_NAME = "ordex";
 
     public boolean isSupportedPlatform() {
@@ -27,22 +27,15 @@ public class StartupManager {
 
         try {
             if (enabled) {
-                Process process = new ProcessBuilder(
-                        "reg", "add", RUN_KEY,
-                        "/v", RUN_VALUE_NAME,
-                        "/t", "REG_SZ",
-                        "/d", launchTarget,
-                        "/f").start();
-                return process.waitFor() == 0;
+                Advapi32Util.registrySetStringValue(WinReg.HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE_NAME, launchTarget);
+                return true;
             } else {
-                Process process = new ProcessBuilder(
-                        "reg", "delete", RUN_KEY,
-                        "/v", RUN_VALUE_NAME,
-                        "/f").start();
-                int exit = process.waitFor();
-                return exit == 0 || exit == 1;
+                if (Advapi32Util.registryValueExists(WinReg.HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE_NAME)) {
+                    Advapi32Util.registryDeleteValue(WinReg.HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE_NAME);
+                }
+                return true;
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (RuntimeException e) {
             return false;
         }
     }
@@ -56,12 +49,12 @@ public class StartupManager {
             return false;
         }
         try {
-            Process process = new ProcessBuilder(
-                    "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
-            String output = readProcessOutput(process.getInputStream());
-            int exit = process.waitFor();
-            return exit == 0 && output.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
-        } catch (IOException | InterruptedException e) {
+            if (!Advapi32Util.registryValueExists(WinReg.HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE_NAME)) {
+                return false;
+            }
+            String currentValue = Advapi32Util.registryGetStringValue(WinReg.HKEY_CURRENT_USER, RUN_KEY, RUN_VALUE_NAME);
+            return currentValue.toLowerCase(Locale.ROOT).contains(launchTarget.toLowerCase(Locale.ROOT));
+        } catch (RuntimeException e) {
             return false;
         }
     }
@@ -98,15 +91,5 @@ public class StartupManager {
             return trimmed;
         }
         return "\"" + trimmed + "\"";
-    }
-
-    private String readProcessOutput(InputStream inputStream) {
-        StringBuilder output = new StringBuilder();
-        try (Scanner scanner = new Scanner(inputStream)) {
-            while (scanner.hasNextLine()) {
-                output.append(scanner.nextLine()).append('\n');
-            }
-        }
-        return output.toString();
     }
 }
