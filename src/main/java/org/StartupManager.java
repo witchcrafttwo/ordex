@@ -2,6 +2,7 @@ package org;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Scanner;
@@ -67,6 +68,12 @@ public class StartupManager {
     }
 
     private String resolveLaunchTarget() {
+        // jpackage実行時はランチャーの実パスが提供されるので最優先で使う
+        String jpackageLauncher = System.getProperty("jpackage.app-path", "");
+        if (!jpackageLauncher.isBlank()) {
+            return quoteIfNeeded(jpackageLauncher) + " --tray";
+        }
+
         Optional<String> processCommandOpt = ProcessHandle.current().info().command();
         String processCommand = processCommandOpt.orElse("");
         String lower = processCommand.toLowerCase(Locale.ROOT);
@@ -83,10 +90,39 @@ public class StartupManager {
             }
         }
 
+        String inferredLauncher = inferLauncherPath(processCommand);
+        if (inferredLauncher != null) {
+            return quoteIfNeeded(inferredLauncher) + " --tray";
+        }
+
         // フォールバック: これまで通りjavaw + classpath（開発起動向け）
         String javaw = System.getProperty("java.home") + "\\bin\\javaw.exe";
         String classPath = System.getProperty("java.class.path", "");
         return quoteIfNeeded(javaw) + " -cp " + quoteIfNeeded(classPath) + " org.Main --tray";
+    }
+
+    private String inferLauncherPath(String processCommand) {
+        if (processCommand == null || processCommand.isBlank()) {
+            return null;
+        }
+        String lower = processCommand.toLowerCase(Locale.ROOT).replace('/', '\\');
+        String marker = "\\runtime\\bin\\java";
+        int markerIndex = lower.indexOf(marker);
+        if (markerIndex < 0) {
+            return null;
+        }
+        try {
+            String appRoot = processCommand.substring(0, markerIndex);
+            Path rootPath = Path.of(appRoot);
+            String appName = rootPath.getFileName() != null ? rootPath.getFileName().toString() : "";
+            if (appName.isBlank()) {
+                return null;
+            }
+            Path launcher = rootPath.resolve(appName + ".exe");
+            return launcher.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String quoteIfNeeded(String value) {
