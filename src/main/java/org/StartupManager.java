@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Scanner;
@@ -30,20 +32,20 @@ public class StartupManager {
 
         try {
             if (enabled) {
-                Process process = new ProcessBuilder(
-                        "reg", "add", RUN_KEY,
+                Process process = new ProcessBuilder(buildRegCommand(
+                        "add", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/t", "REG_SZ",
                         "/d", launchTarget,
-                        "/f").start();
+                        "/f")).start();
                 boolean updated = process.waitFor() == 0;
                 deleteLegacyStartupScript();
                 return updated;
             } else {
-                Process process = new ProcessBuilder(
-                        "reg", "delete", RUN_KEY,
+                Process process = new ProcessBuilder(buildRegCommand(
+                        "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
-                        "/f").start();
+                        "/f")).start();
                 int exit = process.waitFor();
                 boolean deleted = exit == 0 || exit == 1;
                 deleteLegacyStartupScript();
@@ -59,8 +61,8 @@ public class StartupManager {
             return false;
         }
         try {
-            Process process = new ProcessBuilder(
-                    "reg", "query", RUN_KEY, "/v", RUN_VALUE_NAME).start();
+            Process process = new ProcessBuilder(buildRegCommand(
+                    "query", RUN_KEY, "/v", RUN_VALUE_NAME)).start();
             String output = readProcessOutput(process.getInputStream());
             int exit = process.waitFor();
             if (exit != 0) {
@@ -236,6 +238,27 @@ public class StartupManager {
         } catch (Exception ignored) {
             // レガシー補助ファイルの削除失敗は自動起動設定の成否に影響させない
         }
+    }
+
+    private List<String> buildRegCommand(String... args) {
+        List<String> command = new ArrayList<>();
+        command.add("reg");
+        for (String arg : args) {
+            command.add(arg);
+        }
+        if (is64BitWindows()) {
+            command.add("/reg:64");
+        }
+        return command;
+    }
+
+    private boolean is64BitWindows() {
+        String osArch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        if (osArch.contains("64")) {
+            return true;
+        }
+        String wow64 = System.getenv("PROCESSOR_ARCHITEW6432");
+        return wow64 != null && !wow64.isBlank();
     }
 
     private String readProcessOutput(InputStream inputStream) {
