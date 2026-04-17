@@ -563,10 +563,7 @@ public class GUI2 {
         if (enabled && !startupManager.isAutoStartRegistered()) {
             boolean registered = startupManager.setAutoStartEnabled(true);
             if (!registered) {
-                enabled = false;
-                autoStartButton.setSelected(false);
-                settings.setAutoStartEnabled(false);
-                appendLog(logArea, "自動起動の設定を復元できませんでした。");
+                appendLog(logArea, "自動起動の再登録に失敗しました。設定はONのまま保持します。");
             }
             updateAutoStartStyle(autoStartButton, enabled);
         }
