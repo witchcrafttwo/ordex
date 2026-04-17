@@ -32,26 +32,25 @@ public class StartupManager {
 
         try {
             if (enabled) {
-                Process process = new ProcessBuilder(buildRegCommand(
+                RegCommandResult result = executeRegCommand(
                         "add", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
                         "/t", "REG_SZ",
                         "/d", launchTarget,
-                        "/f")).start();
-                boolean updated = process.waitFor() == 0;
+                        "/f");
+                boolean updated = result.exitCode == 0;
                 deleteLegacyStartupScript();
                 return updated;
             } else {
-                Process process = new ProcessBuilder(buildRegCommand(
+                RegCommandResult result = executeRegCommand(
                         "delete", RUN_KEY,
                         "/v", RUN_VALUE_NAME,
-                        "/f")).start();
-                int exit = process.waitFor();
-                boolean deleted = exit == 0 || exit == 1;
+                        "/f");
+                boolean deleted = result.exitCode == 0 || result.exitCode == 1;
                 deleteLegacyStartupScript();
                 return deleted;
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             return false;
         }
     }
@@ -61,11 +60,9 @@ public class StartupManager {
             return false;
         }
         try {
-            Process process = new ProcessBuilder(buildRegCommand(
-                    "query", RUN_KEY, "/v", RUN_VALUE_NAME)).start();
-            String output = readProcessOutput(process.getInputStream());
-            int exit = process.waitFor();
-            if (exit != 0) {
+            RegCommandResult result = executeRegCommand(
+                    "query", RUN_KEY, "/v", RUN_VALUE_NAME);
+            if (result.exitCode != 0) {
                 return false;
             }
 
@@ -74,7 +71,7 @@ public class StartupManager {
                 return true;
             }
 
-            String registeredCommand = extractRegisteredCommand(output);
+            String registeredCommand = extractRegisteredCommand(result.stdOut);
             if (registeredCommand == null || registeredCommand.isBlank()) {
                 return false;
             }
@@ -88,7 +85,7 @@ public class StartupManager {
                 runKeyMatched = normalizePath(expectedExecutable).equals(normalizePath(registeredExecutable));
             }
             return runKeyMatched;
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             return false;
         }
     }
@@ -240,16 +237,49 @@ public class StartupManager {
         }
     }
 
-    private List<String> buildRegCommand(String... args) {
+    private List<String> buildRegCommand(boolean addReg64, String... args) {
         List<String> command = new ArrayList<>();
         command.add("reg");
         for (String arg : args) {
             command.add(arg);
         }
-        if (is64BitWindows()) {
+        if (addReg64) {
             command.add("/reg:64");
         }
         return command;
+    }
+
+    private RegCommandResult executeRegCommand(String... args) throws IOException {
+        boolean[] attempts = is64BitWindows() ? new boolean[]{true, false} : new boolean[]{false};
+        RegCommandResult lastResult = null;
+        IOException lastException = null;
+
+        for (boolean addReg64 : attempts) {
+            try {
+                Process process = new ProcessBuilder(buildRegCommand(addReg64, args)).start();
+                String stdOut = readProcessOutput(process.getInputStream());
+                String stdErr = readProcessOutput(process.getErrorStream());
+                int exitCode = process.waitFor();
+                RegCommandResult result = new RegCommandResult(exitCode, stdOut, stdErr);
+                if (exitCode == 0) {
+                    return result;
+                }
+                lastResult = result;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return new RegCommandResult(1, "", e.getMessage() == null ? "" : e.getMessage());
+            } catch (IOException e) {
+                lastException = e;
+            }
+        }
+
+        if (lastResult != null) {
+            return lastResult;
+        }
+        if (lastException != null) {
+            throw lastException;
+        }
+        return new RegCommandResult(1, "", "");
     }
 
     private boolean is64BitWindows() {
@@ -259,6 +289,18 @@ public class StartupManager {
         }
         String wow64 = System.getenv("PROCESSOR_ARCHITEW6432");
         return wow64 != null && !wow64.isBlank();
+    }
+
+    private static final class RegCommandResult {
+        private final int exitCode;
+        private final String stdOut;
+        private final String stdErr;
+
+        private RegCommandResult(int exitCode, String stdOut, String stdErr) {
+            this.exitCode = exitCode;
+            this.stdOut = stdOut;
+            this.stdErr = stdErr;
+        }
     }
 
     private String readProcessOutput(InputStream inputStream) {
